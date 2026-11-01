@@ -90,8 +90,8 @@ DEFAULTS: dict[str, dict[str, str]] = {
     },
     "market": {
         "own_sellers": "برنا سنسور",
-        "min_price_toman": "300000",
-        "max_price_toman": "50000000",
+        "min_price_usd": "2",
+        "max_price_usd": "60",
         "jump_quarantine": "0.5",
         "stale_days": "14",
         "length_tolerance_mm": "30",
@@ -206,8 +206,8 @@ class PathsCfg:
 @dataclass(frozen=True)
 class MarketCfg:
     own_sellers: tuple
-    min_price_toman: int
-    max_price_toman: int
+    min_price_usd: Decimal
+    max_price_usd: Decimal
     jump_quarantine: Decimal
     stale_days: int
     length_tolerance_mm: int
@@ -433,14 +433,14 @@ def load_config(path: str | Path | None = None) -> Config:
     mk = cp["market"]
     market = MarketCfg(
         own_sellers=tuple(x.strip() for x in re.split(r"[,،\n]+", mk["own_sellers"]) if x.strip()),
-        min_price_toman=_int("market", "min_price_toman", mk["min_price_toman"], 1),
-        max_price_toman=_int("market", "max_price_toman", mk["max_price_toman"], 1),
+        min_price_usd=_dec("market", "min_price_usd", mk["min_price_usd"], Decimal("0.01"), Decimal(100000)),
+        max_price_usd=_dec("market", "max_price_usd", mk["max_price_usd"], Decimal("0.01"), Decimal(100000)),
         jump_quarantine=_dec("market", "jump_quarantine", mk["jump_quarantine"], Decimal("0.05"), Decimal(10)),
         stale_days=_int("market", "stale_days", mk["stale_days"], 1, 365),
         length_tolerance_mm=_int("market", "length_tolerance_mm", mk["length_tolerance_mm"], 0, 500),
     )
-    if market.min_price_toman >= market.max_price_toman:
-        raise ConfigError("[market] min_price_toman باید کمتر از max_price_toman باشد.")
+    if market.min_price_usd >= market.max_price_usd:
+        raise ConfigError("[market] min_price_usd باید کمتر از max_price_usd باشد.")
 
     co = cp["collector"]
     ua = co["user_agent"].strip()

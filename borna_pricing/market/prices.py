@@ -95,8 +95,13 @@ def parse_price(text, default_unit: str = "toman", availability: str | None = No
     return ParsedPrice("price", value * 10 if unit == "toman" else value, unit, avail, raw)
 
 
-def in_range(value_rial: int, min_toman: int, max_toman: int) -> bool:
-    return min_toman * 10 <= value_rial <= max_toman * 10
+def usd_bounds_rial(min_usd, max_usd, toman_per_usd: int) -> tuple[int, int]:
+    rial = Decimal(toman_per_usd) * 10
+    return int(Decimal(min_usd) * rial), int(Decimal(max_usd) * rial)
+
+
+def in_range(value_rial: int, lo_rial: int, hi_rial: int) -> bool:
+    return lo_rial <= value_rial <= hi_rial
 
 
 def jump(new_rial: int, old_rial: int | None) -> Decimal | None:

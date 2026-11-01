@@ -72,10 +72,10 @@ def test_migration_is_atomic(tmp_path, monkeypatch):
 def test_market_settings_defaults_and_validation(tmp_path):
     cfg = config.load_config(write_settings(tmp_path))
     assert cfg.market.own_sellers == ("برنا سنسور",)
-    assert cfg.market.min_price_toman == 300000 and cfg.market.stale_days == 14
+    assert cfg.market.min_price_usd == 2 and cfg.market.max_price_usd == 60 and cfg.market.stale_days == 14
     assert cfg.collector.min_delay_seconds == 3 and cfg.agents.enabled
     assert cfg.agents.report_weekday == 5 and cfg.paths.evidence_dir.name == "evidence"
-    bad = write_settings(tmp_path, "[market]\nmin_price_toman = 9\nmax_price_toman = 5\n")
+    bad = write_settings(tmp_path, "[market]\nmin_price_usd = 9\nmax_price_usd = 5\n")
     with pytest.raises(config.ConfigError):
         config.load_config(bad)
     bad = write_settings(tmp_path, "[agents]\nreport_weekday = someday\n")

@@ -221,14 +221,20 @@ def cmd_serve(args) -> int:
         print(f"پایگاه‌داده به نسخه {migrated[-1]} به‌روز شد (پشتیبان پیش از آن در data/backups ساخته شد).")
     from waitress import serve
 
+    from .market.agents import AgentSupervisor
+    from .market.service import MarketService
     from .scheduler import Scheduler
     from .web import create_app
-    app = create_app(cfg, svc)
+    market = MarketService(svc)
+    app = create_app(cfg, svc, market)
     host, port = args.host or cfg.web.host, args.port or cfg.web.port
-    sched = None
+    sched = supervisor = None
     if not args.no_scheduler:
         sched = Scheduler(svc)
         sched.start()
+        if cfg.agents.enabled:
+            supervisor = AgentSupervisor(market, cfg.agents.poll_seconds)
+            supervisor.start()
     print(f"سامانه قیمت‌گذاری برنا {__version__} روشن شد:  http://127.0.0.1:{port}/")
     if host in ("0.0.0.0", "::"):
         for ip in _lan_ips():
@@ -238,11 +244,14 @@ def cmd_serve(args) -> int:
     if note:
         print("  توجه:", note)
     print("برای خاموش کردن: Ctrl+C")
+    print(f"  ایجنت‌های بازار: {'روشن' if supervisor else 'خاموش'}")
     try:
         serve(app, host=host, port=port, threads=8, ident="borna-pricing")
     finally:
         if sched:
             sched.stop()
+        if supervisor:
+            supervisor.stop()
     return 0
 
 

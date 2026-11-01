@@ -43,3 +43,26 @@ secret_key_file = data/secret.key
     p = tmp_path / "settings.ini"
     p.write_text(text, encoding="utf-8")
     return p
+
+
+class FakeWeb:
+    def __init__(self, pages=None):
+        self.pages = dict(pages or {})
+        self.calls = []
+
+    def __call__(self, url, headers, timeout, max_bytes):
+        from borna_pricing.market.fetcher import Response
+        self.calls.append(url)
+        if url not in self.pages:
+            return Response(404, {"content-type": "text/plain"}, b"not found")
+        status, ctype, body = self.pages[url]
+        return Response(status, {"content-type": ctype}, body.encode("utf-8") if isinstance(body, str) else body)
+
+
+def fake_fetcher_factory(web):
+    from borna_pricing.market.fetcher import Fetcher
+
+    def make():
+        return Fetcher("BornaMarketBot/1.2", min_delay=0, resolver=lambda h, p: ["93.184.216.34"], transport=web,
+                       sleep=lambda s: None)
+    return make

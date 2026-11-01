@@ -88,9 +88,11 @@ def test_availability_and_guards():
     assert prices.detect_availability("موجود در انبار") == "in_stock"
     assert prices.schema_availability("https://schema.org/OutOfStock") == "out_of_stock"
     assert prices.schema_availability("http://schema.org/InStock") == "in_stock"
-    assert prices.in_range(27_000_000, 300_000, 50_000_000)
-    assert not prices.in_range(2_700_000_000, 300_000, 50_000_000)
-    assert not prices.in_range(270_000, 300_000, 50_000_000)
+    lo, hi = prices.usd_bounds_rial(2, 60, 260_000)
+    assert (lo, hi) == (5_200_000, 156_000_000)
+    assert prices.in_range(27_000_000, lo, hi)
+    assert not prices.in_range(270_000_000, lo, hi)
+    assert not prices.in_range(2_700_000, lo, hi)
     assert prices.jump(30, 20) == pytest.approx(0.5)
 
 
