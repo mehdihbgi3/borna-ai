@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <h1>{{ p.name }}</h1>
+  <p>{% if not p.active %}{{ tag('muted', 'غیرفعال؛ در لیست نیست') }}{% endif %}</p>
+</div>
+<div class="cols">
+  <section class="panel" style="margin-top:0">
+    <header><h2>مشخصات</h2></header>
+    <div class="body">
+      <dl class="kv">
+        <dt>کد در سامانه</dt><dd><span class="pn">{{ p.key }}</span></dd>
+        <dt>پارت‌نامبر</dt><dd><span class="pn">{{ p.part_no or '—' }}</span>{% if p.part_no_norm and p.part_no_norm != p.part_no %} <span class="small muted">(یکسان‌شده: <span class="pn">{{ p.part_no_norm }}</span>)</span>{% endif %}</dd>
+        <dt>نام در کاتالوگ</dt><dd>{{ p.catalog_name or '—' }}</dd>
+        <dt>طرح / ECU</dt><dd>{{ p.design or '—' }} / {{ p.ecu or '—' }}</dd>
+        <dt>خودرو</dt><dd>{{ p.vehicle or '—' }}</dd>
+        <dt>طول سیم</dt><dd>{{ p.length_text or '—' }}{% if p.length_mm %} (کد: {{ p.length_mm|fa }} میلی‌متر){% endif %}</dd>
+        <dt>وضعیت تطبیق</dt><dd>{{ p.status or '—' }}</dd>
+        <dt>قیمت پایه</dt><dd><span class="num">{{ p.base_price_rial|money }}</span> ریال (لیست {{ cfg.pricing.base_date_text|fa }})</dd>
+        <dt>سهم ارزی (α)</dt><dd><span class="num">{{ (p.alpha or cfg.pricing.alpha_default)|string|fa }}</span>{% if not p.alpha %} <span class="small muted">پیش‌فرض</span>{% endif %}</dd>
+        {% if p.note %}<dt>یادداشت</dt><dd class="small">{{ p.note }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+  <section class="panel" style="margin-top:0">
+    <header><h2>آخرین محاسبه</h2></header>
+    <div class="body">
+      {% if h.last_run %}
+      <dl class="kv">
+        <dt>زمان</dt><dd>{{ h.last_run.created_at|jdt }}</dd>
+        <dt>قیمت محاسبه‌شده</dt><dd><span class="num">{{ h.last_run.price_rial|money }}</span> ریال</dd>
+        <dt>قیمت رسمی آن زمان</dt><dd><span class="num">{{ h.last_run.pub_price_rial|money }}</span> ریال</dd>
+        <dt>تغییر</dt><dd>{{ h.last_run.change_vs_pub|dec|pctx }}</dd>
+        <dt>وضعیت محاسبه</dt><dd>{{ RUN_STATUS.get(h.last_run.run_status, h.last_run.run_status) }}</dd>
+      </dl>
+      {% else %}<p class="muted">هنوز محاسبه‌ای انجام نشده است.</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="ph-title">
+  <header><h2 id="ph-title">قیمت رسمی این کالا در لیست‌های منتشرشده (ریال)</h2></header>
+  <div class="body">
+    {% if chart %}
+    <div class="chart">{{ chart.svg }}<script type="application/json">{{ chart.data }}</script></div>
+    {% endif %}
+  </div>
+  <div class="tbl-wrap">
+  <table class="data">
+    <thead><tr><th class="num">لیست</th><th>تاریخ انتشار</th><th>نوع</th><th class="num">دلار (تومان)</th><th class="num">قیمت (ریال)</th><th class="num">تومان</th></tr></thead>
+    <tbody>
+    {% for x in h.history|reverse %}
+      <tr><td class="num"><a href="{{ url_for('pricelist_page', pub_id=x.id) }}">{{ x.id|fa }}</a></td><td>{{ x.published_at|jdt }}</td><td>{{ PUB_KIND.get(x.kind, x.kind) }}</td>
+        <td class="num">{{ (x.rate_rial // 10)|money }}</td><td class="num strong">{{ x.price_rial|money }}</td><td class="num">{{ x.price_rial|toman }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

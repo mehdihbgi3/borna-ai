@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:560px">
+  <header><h2>{{ title }}</h2><span class="muted num">{{ code|fa }}</span></header>
+  <div class="body">
+    <p>{{ text }}</p>
+    <p><a class="btn quiet" href="{{ url_for('dashboard') }}">رفتن به داشبورد</a></p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag %}
+{% block title %}تنظیمات{% endblock %}
+{% block content %}
+{% set src, a, t, p, g = cfg.source, cfg.alanchand, cfg.pricetoday, cfg.pricing, cfg.guards %}
+<div class="page-title"><h1>تنظیمات</h1><p>برای تغییر، فایل <code>{{ cfg.settings_path }}</code> را ویرایش و سامانه را دوباره روشن کنید.</p></div>
+<div class="cols">
+  <section class="panel" style="margin-top:0"><header><h2>قیمت‌گذاری (قدم ۱)</h2></header><div class="body"><dl class="kv">
+    <dt>نرخ مبنا</dt><dd>{{ p.base_rate_toman|money }} تومان ({{ p.base_rate_rial|money }} ریال)</dd>
+    <dt>تاریخ لیست پایه</dt><dd>{{ p.base_date_text|fa }}</dd>
+    <dt>α پیش‌فرض</dt><dd>{{ p.alpha_default|string|fa }}</dd>
+    <dt>گام گرد کردن</dt><dd>{{ p.round_step_rial|money }} ریال</dd>
+    <dt>آستانه انتشار</dt><dd>{{ p.publish_threshold|pctp }}</dd>
+    <dt>آستانه تأیید روزانه</dt><dd>{{ p.approval_threshold|pctp }} (نسبت به لیستِ ابتدای روز)</dd>
+    <dt>سنجش تغییر</dt><dd>{{ 'قیمت دقیق پیش از گرد کردن (اثر دلار)' if p.change_basis == 'exact' else 'قیمت گردشده' }}</dd>
+    <dt>انتشار خودکار</dt><dd>{{ 'روشن' if p.auto_publish else 'خاموش (دوره آزمایشی)' }}</dd>
+    <dt>تمدید خودکار اعتبار</dt><dd>{{ 'روشن' if p.auto_renew else 'خاموش' }}</dd>
+  </dl></div></section>
+  <section class="panel" style="margin-top:0"><header><h2>منبع نرخ و محافظ‌ها</h2></header><div class="body"><dl class="kv">
+    <dt>منبع</dt><dd>{{ source_label }}</dd>
+    {% if src.provider == 'alanchand' %}
+    <dt>نشانی</dt><dd><span class="pn">{{ a.url }}?type={{ a.type }}</span></dd>
+    <dt>نماد و فیلد</dt><dd><span class="pn">{{ a.slug }} / {{ a.field }}</span> (واحد: {{ 'تومان' if a.unit == 'toman' else 'ریال' }})</dd>
+    <dt>توکن</dt><dd>{% if a.token_is_set %}{{ tag('good', 'تنظیم شده') }}{% else %}{{ tag('crit', 'تنظیم نشده') }}{% endif %}</dd>
+    {% else %}
+    <dt>نشانی</dt><dd><span class="pn">{{ t.url }}</span></dd>
+    <dt>واحد پاسخ</dt><dd>{{ 'تومان' if t.unit == 'toman' else 'ریال' }}؛ کلید یا توکن لازم ندارد</dd>
+    {% endif %}
+    <dt>حالت</dt><dd>{{ {'live': 'زنده (اینترنت)', 'file': 'فایل آزمون', 'off': 'خاموش؛ فقط دستی'}[src.mode] }}</dd>
+    <dt>فاصله دریافت</dt><dd>{{ g.fetch_interval_minutes|fa }} دقیقه (تلاش دوباره پس از قطعی: {{ g.retry_minutes|fa }} دقیقه)</dd>
+    <dt>سقف کهنگی</dt><dd>{{ g.max_age_minutes|fa }} دقیقه از ساعت کاری</dd>
+    <dt>سقف جهش</dt><dd>{{ g.jump_threshold|pctp }} نسبت به آخرین نرخ پذیرفته‌شده</dd>
+    <dt>بازه مجاز</dt><dd>{{ g.min_rate_toman|money }} تا {{ g.max_rate_toman|money }} تومان</dd>
+  </dl></div></section>
+  <section class="panel" style="margin-top:0"><header><h2>ساعت کاری</h2></header><div class="body"><dl class="kv">
+    {% for day, span in hours %}<dt>{{ day }}</dt><dd>{{ span }}</dd>{% endfor %}
+    <dt>تعطیلات</dt><dd>{% if holidays %}{% for h in holidays %}{{ h|jdate }}{% if not loop.last %}، {% endif %}{% endfor %}{% else %}—{% endif %}</dd>
+  </dl></div></section>
+</div>
+{% endblock %}

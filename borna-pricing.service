@@ -1,0 +1,19 @@
+[Unit]
+Description=Borna FX-linked pricing (web site + hourly dollar rate)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=borna
+WorkingDirectory=/opt/borna_pricing
+Environment=PYTHONUTF8=1
+ExecStart=/opt/borna_pricing/.venv/bin/python -m borna_pricing serve
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

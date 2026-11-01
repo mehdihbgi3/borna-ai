@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, tag, validity_tag, csrf %}
+{% block title %}داشبورد{% endblock %}
+{% block content %}
+{% set pub = st.publication %}
+{% set la = st.last_accepted %}
+{% set pub_thr = cfg.pricing.publish_threshold|pctw %}
+{% set appr_thr = cfg.pricing.approval_threshold|pctw %}
+
+{% if st.held %}
+  {% if can('approver') %}
+  <section class="alert warn" aria-labelledby="held-title">
+    <span class="icon">{{ icon('alert', 22) }}</span>
+    <div>
+      <h2 id="held-title">نرخ تازه منتظر تصمیم شماست: {{ st.held.value_toman|money }} تومان</h2>
+      <p>{{ st.held.message }}</p>
+      <p class="small muted">زمان نرخ در منبع: {{ st.held.source_updated_at|jdt }} ({{ ago(st.held.source_updated_at) }})، دریافت: {{ st.held.fetched_at|hm }}</p>
+      <form method="post" action="{{ url_for('decide_rate', rate_id=st.held.id) }}" class="actions">
+        {{ csrf() }}
+        <input type="text" name="note" placeholder="توضیح (اختیاری)" size="26">
+        <button class="btn" name="decision" value="accept">پذیرفتن نرخ و محاسبه قیمت‌ها</button>
+        <button class="btn danger" name="decision" value="reject">رد نرخ</button>
+      </form>
+    </div>
+  </section>
+  {% else %}
+  <section class="alert info"><span class="icon">{{ icon('clock', 20) }}</span>
+    <div><p>نرخ تازه‌ای دریافت شده و منتظر تأیید مالی است؛ تا آن زمان قیمت‌های رسمی همین‌هاست.</p></div>
+  </section>
+  {% endif %}
+{% endif %}
+
+{% if pub %}
+<section class="plate" aria-labelledby="plate-title">
+  <div class="plate-head">
+    <h1 id="plate-title">لیست قیمت رسمی، شماره {{ pub.id|fa }}</h1>
+    <div class="tools">
+      <a class="btn quiet small" href="{{ url_for('pricelist_page') }}">نسخه چاپی</a>
+      <a class="btn quiet small" href="{{ url_for('pricelist_xlsx') }}">دانلود Excel</a>
+    </div>
+  </div>
+  <dl class="plate-body">
+    <div class="plate-field"><dt>اعتبار</dt><dd>{{ validity_tag(pub, st.now) }}</dd></div>
+    <div class="plate-field"><dt>تاریخ انتشار</dt><dd>{{ pub.published_at|jlong }}<span class="sub">ساعت {{ pub.published_at|hm }}</span></dd></div>
+    <div class="plate-field"><dt>نرخ دلار مبنای لیست</dt><dd><span class="num">{{ (pub.rate_rial // 10)|money }}</span> تومان<span class="sub">{{ PUB_KIND[pub.kind] }}</span></dd></div>
+    <div class="plate-field"><dt>منتشرکننده</dt><dd>{{ who(pub.published_by) }}<span class="sub">{% if pub.approved_by %}با تأیید {{ who(pub.approved_by) }}{% elif pub.kind == 'base' %}از لیست قیمت برنا{% else %}بدون نیاز به تأیید{% endif %}</span></dd></div>
+  </dl>
+  {% if not pub.is_valid %}
+  <p class="plate-warning">{{ icon('stop', 16) }}
+    <span><b>اعتبار این لیست تمام شده است.</b>
+    {% if can('approver') %}با نرخ امروز، اگر تغییری لازم نباشد اعتبار خودکار تمدید می‌شود؛ وگرنه لیست تازه را منتشر کنید.{% else %}پیش از اعلام قیمت به مشتری با مدیر فروش هماهنگ کنید.{% endif %}</span></p>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="hero" aria-label="نرخ دلار">
+  <div class="rate">
+    <p class="label">دلار بازار آزاد، نرخ فروش</p>
+    {% if la %}
+      <p class="figure"><span class="num">{{ la.value_toman|money }}</span><span class="unit">تومان</span></p>
+      <dl class="facts">
+        <dt>منبع</dt><dd>{{ RATE_SOURCE.get(la.source, la.source) }}{% if la.source == 'manual' %}، {{ who(la.created_by) }}{% endif %}{% if la.status == 'approved' %}، با تأیید {{ who(la.decided_by) }}{% endif %}</dd>
+        <dt>زمان نرخ</dt><dd>{{ la.source_updated_at|jdt }} ({{ ago(la.source_updated_at) }})</dd>
+        <dt>نسبت به مبنا</dt><dd>{{ st.change_vs_base|pctx }} (مبنا {{ cfg.pricing.base_rate_toman|money }})</dd>
+        {% if st.next_auto_fetch %}<dt>دریافت بعدی</dt><dd>{{ st.next_auto_fetch|when(st.now) }}</dd>{% endif %}
+      </dl>
+    {% else %}
+      <p class="empty">هنوز نرخی پذیرفته نشده است.{% if can('approver') %} نرخ را از {{ source_label }} بگیرید یا دستی وارد کنید.{% endif %}</p>
+      {% if st.next_auto_fetch %}<p class="small muted">دریافت خودکار بعدی: {{ st.next_auto_fetch|when(st.now) }}</p>{% endif %}
+    {% endif %}
+    {% if attempt_problem %}
+      <p class="problem"><b>آخرین تلاش ({{ attempt_problem.fetched_at|hm }})، {{ RATE_STATUS[attempt_problem.status] }}:</b> {{ attempt_problem.message }}</p>
+    {% endif %}
+  </div>
+
+  <div class="gauge">
+    <h2>فاصله دلار از نرخ لیست رسمی</h2>
+    {% if meter.change is not none or meter.held is not none %}
+    {% set z = meter.zones %}
+    <div class="meter" style="--pos: {{ '%.2f'|format(meter.pos if meter.pos is not none else 50) }}%" role="img"
+         aria-label="{% if meter.change is not none %}دلار {{ meter.change|pct }} با نرخ لیست رسمی فاصله دارد. {% endif %}{% if meter.held is not none %}نرخ در انتظار تأیید {{ meter.held|pct }} فاصله دارد. {% endif %}آستانه انتشار {{ pub_thr }} و آستانه تأیید {{ appr_thr }}.">
+      {% for kind, a, b in z %}<div class="zone {{ kind }}" style="left: {{ '%.2f'|format(a) }}%; width: {{ '%.2f'|format(b - a) }}%"></div>{% endfor %}
+      {% for x, label in meter.ticks %}<div class="tick" style="left: {{ '%.2f'|format(x) }}%"><span class="num">{{ label }}</span></div>{% endfor %}
+      <span class="caption" style="left: {{ '%.2f'|format((z[0][1] + z[0][2]) / 2) }}%">انتشار با تأیید</span>
+      <span class="caption" style="left: {{ '%.2f'|format((z[1][1] + z[1][2]) / 2) }}%">انتشار</span>
+      <span class="caption" style="left: 50%">بدون تغییر لیست</span>
+      <span class="caption" style="left: {{ '%.2f'|format((z[3][1] + z[3][2]) / 2) }}%">انتشار</span>
+      <span class="caption" style="left: {{ '%.2f'|format((z[4][1] + z[4][2]) / 2) }}%">انتشار با تأیید</span>
+      {% if meter.held_pos is not none %}<div class="ghost" style="--pos: {{ '%.2f'|format(meter.held_pos) }}%" title="نرخ در انتظار تأیید: {{ meter.held|pct }}"></div>{% endif %}
+      {% if meter.change is not none %}<div class="needle{% if meter.clamped %} clamped{% endif %}{% if meter.change < 0 %} left{% endif %}"><b>{{ meter.change|pct }}</b></div>{% endif %}
+    </div>
+    <p class="verdict">
+      {% if meter.change is none %}
+        <strong>هنوز نرخی پذیرفته نشده است.</strong> قاب آبی جای نرخ دریافتی را نشان می‌دهد؛ اگر پذیرفته شود
+        {% if meter.held|abs > cfg.pricing.approval_threshold %}انتشار با تأیید لازم می‌شود.{% elif meter.held|abs > cfg.pricing.publish_threshold %}انتشار لازم می‌شود.{% else %}نیازی به انتشار نیست.{% endif %}
+      {% elif run_live and run.status == 'draft' and run.needs_approval %}
+        <strong>لیست تازه لازم است و تأیید مدیرعامل یا مالی می‌خواهد.</strong>
+        تغییر نسبت به لیستِ ابتدای امروز بیش از {{ appr_thr }} است.
+      {% elif run_live and run.status == 'draft' %}
+        <strong>لیست تازه لازم است.</strong> قیمت‌ها بیش از {{ pub_thr }} تغییر کرده‌اند.
+      {% elif meter.zone == 'calm' %}
+        <strong>نیازی به انتشار نیست.</strong> فاصله کمتر از {{ pub_thr }} است.
+      {% else %}
+        <strong>فاصله از آستانه گذشته است.</strong> محاسبه تازه لازم است.
+      {% endif %}
+      {% if meter.held is not none and meter.change is not none %}<span class="small muted"> قاب آبی: جای نرخِ در انتظار تأیید ({{ meter.held|pctwords }}).</span>{% endif %}
+      {% if not can('approver') and run_live and run.status == 'draft' %}<span class="small muted"> لیست تازه به‌زودی منتشر می‌شود؛ پیش از قول قیمت با مدیر فروش هماهنگ کنید.</span>{% endif %}
+    </p>
+    {% else %}
+    <p class="verdict muted">وقتی نرخی پذیرفته شود، فاصله آن از نرخ لیست رسمی اینجا دیده می‌شود.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% if can('approver') %}
+  {% if run_live and run.status == 'draft' %}
+  <section class="panel publish-box{% if run.needs_approval %} approval{% endif %}" aria-labelledby="pub-title">
+    <header>
+      <h2 id="pub-title">لیست تازه آماده انتشار است</h2>
+      <span class="small muted">محاسبه شماره {{ run.id|fa }}، {{ run.created_at|jdt }}، دلار {{ (run.rate_rial // 10)|money }} تومان</span>
+    </header>
+    <div class="body">
+      <p>
+        {{ run.n_publish|fa }} کالا از آستانه انتشار گذشته‌اند. با انتشار، هر {{ run.rows|length|fa }} کالا با قیمت تازه منتشر می‌شوند و لیست {{ cfg.web.validity_text }} معتبر است.
+        {% if run.needs_approval %}<br><b>{{ run.n_approval|fa }} کالا بیش از {{ appr_thr }} نسبت به ابتدای امروز تغییر دارند؛ انتشار فقط با تأیید مدیرعامل یا مدیر مالی.</b>{% endif %}
+      </p>
+      {% if run.removed %}<p class="small">این کالاها در لیست تازه نیستند: {{ run.removed|join('، ') }}</p>{% endif %}
+      <form method="post" action="{{ url_for('publish', run_id=run.id) }}" class="publish-form">
+        {{ csrf() }}
+        {% if run.needs_approval %}
+        <label class="checkline"><input type="checkbox" name="confirm" value="1" id="confirm-approval">
+          تغییر بیش از {{ appr_thr }} را بررسی کردم و به‌عنوان مدیرعامل یا مدیر مالی تأیید می‌کنم.</label>
+        {% endif %}
+        <input type="text" name="note" placeholder="یادداشت انتشار (اختیاری)" size="30">
+        <button class="btn"{% if run.needs_approval %} data-requires="confirm-approval"{% endif %}>انتشار لیست تازه</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="panel" aria-labelledby="tools-title">
+    <header><h2 id="tools-title">نرخ و محاسبه</h2>
+      {% if run %}<span class="small muted">آخرین محاسبه: شماره {{ run.id|fa }}، {{ RUN_STATUS[run.status] }}</span>{% endif %}
+    </header>
+    <div class="toolrow">
+      <div class="tool">
+        <h3>دریافت نرخ از {{ source_label }}</h3>
+        <p>{% if cfg.source.mode == 'off' %}دریافت خودکار خاموش است.{% elif fetch_ready %}همین حالا ممکن است.{% else %}فاصله دو دریافت {{ cfg.guards.fetch_interval_minutes|fa }} دقیقه است؛ بعدی از ساعت {{ st.fetch_allowed_at|hm }}.{% endif %}</p>
+        <form method="post" action="{{ url_for('fetch') }}">{{ csrf() }}
+          <button class="btn quiet"{% if not fetch_ready or cfg.source.mode == 'off' %} disabled{% endif %}>دریافت نرخ الان</button></form>
+      </div>
+      <div class="tool">
+        <h3>ورود نرخ دستی</h3>
+        <p>وقتی API در دسترس نیست یا نرخ را از صرافی گرفته‌اید.</p>
+        <form method="post" action="{{ url_for('manual_rate') }}" class="inline-form">{{ csrf() }}
+          <label class="field">نرخ به تومان<input type="text" name="toman" inputmode="numeric" size="9" required data-toman-preview="toman-rial" dir="ltr"></label>
+          <label class="field">منبع یا دلیل<input type="text" name="note" required size="14"></label>
+          <button class="btn quiet">ثبت نرخ</button>
+          <span id="toman-rial" class="hint"></span>
+        </form>
+      </div>
+      <div class="tool">
+        <h3>محاسبه دوباره</h3>
+        <p>بعد از تغییر کالاها یا تنظیمات، با آخرین نرخ پذیرفته‌شده.</p>
+        <form method="post" action="{{ url_for('recompute') }}">{{ csrf() }}
+          <button class="btn quiet"{% if not la %} disabled{% endif %}>محاسبه دوباره</button></form>
+        {% if not cfg.pricing.auto_renew and run and run.status == 'no_change' and pub and not pub.is_valid %}
+        <form method="post" action="{{ url_for('renew') }}" style="margin-top:8px">{{ csrf() }}
+          <button class="btn quiet">تمدید اعتبار لیست برای امروز</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endif %}
+
+<section class="panel" aria-labelledby="prices-title">
+  <header>
+    <h2 id="prices-title">{% if table.compare %}قیمت‌ها: لیست رسمی و محاسبه تازه{% else %}قیمت‌های لیست رسمی{% endif %}</h2>
+    <div class="table-tools">
+      <input type="search" placeholder="جست‌وجوی نام، پارت‌نامبر، خودرو" data-filter-for="prices" aria-label="جست‌وجو در کالاها">
+      <span class="small muted"><span data-count-for="prices">{{ table.rows|length|fa }}</span> کالا</span>
+    </div>
+  </header>
+  <div class="tbl-wrap">
+  <table class="data" id="prices">
+    <thead><tr>
+      <th class="rowno">ردیف</th><th>نام محصول</th><th>پارت‌نامبر</th>
+      {% if table.compare %}
+      <th class="num">قیمت رسمی (ریال)</th><th class="num">قیمت تازه (ریال)</th><th class="num">تغییر</th><th>وضعیت</th>
+      {% else %}
+      <th class="num">حداقل سفارش</th><th class="num">قیمت هر عدد (ریال)</th>
+      {% endif %}
+    </tr></thead>
+    <tbody>
+    {% for r in table.rows %}
+      <tr class="{% if table.compare %}{{ 'changed' if r.changed else 'same' }}{% endif %}">
+        <td class="rowno num">{{ r.row_no|fa }}</td>
+        <td><a href="{{ url_for('product', key=r.key) }}">{{ r.name }}</a>{% if table.compare and r.status and r.status != 'قطعی' %}<span class="sub">{{ r.status }}</span>{% endif %}</td>
+        <td><span class="pn">{{ r.part_no or '—' }}</span></td>
+        {% if table.compare %}
+        <td class="num">{{ r.pub|money }}<span class="sub">{{ r.pub|toman }} تومان</span></td>
+        <td class="num new">{{ r.new|money }}<span class="sub">{{ r.new|toman }} تومان</span></td>
+        <td class="num">{{ r.chg|pctx }}</td>
+        <td>{% if r.flag_approval %}{{ tag('crit', 'تأیید لازم') }}{% elif r.flag_publish %}{{ tag('warn', 'انتشار لازم') }}{% elif r.changed %}{{ tag('muted', 'زیر آستانه', 'info') }}{% else %}{{ tag('muted', 'بدون تغییر', 'check') }}{% endif %}</td>
+        {% else %}
+        <td class="num">{{ r.moq|fa if r.moq else '—' }}</td>
+        <td class="num strong">{{ r.pub|money }}<span class="sub">{{ r.pub|toman }} تومان</span></td>
+        {% endif %}
+      </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="7">هنوز لیستی منتشر نشده است.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

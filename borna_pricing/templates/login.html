@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ورود — قیمت‌گذاری {{ cfg.web.company_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <header><b>{{ cfg.web.company_name }}</b><span>سامانه قیمت‌گذاری ارزی</span></header>
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
+      <label class="field">نام کاربری
+        <input type="text" name="username" autocomplete="username" required autofocus dir="ltr" value="{{ request.form.get('username', '') }}">
+      </label>
+      <label class="field">رمز عبور
+        <input type="password" name="password" autocomplete="current-password" required dir="ltr">
+      </label>
+      <button class="btn">ورود</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

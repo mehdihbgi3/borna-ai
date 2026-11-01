@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}انتشارها{% endblock %}
+{% block content %}
+<div class="page-title"><h1>لیست‌های منتشرشده</h1><p>هر لیست با همه قیمت‌هایش نگه داشته می‌شود.</p></div>
+<section class="panel">
+  <div class="tbl-wrap">
+  <table class="data">
+    <thead><tr><th class="num">شماره</th><th>تاریخ انتشار</th><th>نوع</th><th class="num">دلار (تومان)</th><th>منتشرکننده</th><th>تأیید</th><th>اعتبار تا</th><th class="num">کالا</th><th>یادداشت</th><th></th></tr></thead>
+    <tbody>
+    {% for p in pubs %}
+      <tr>
+        <td class="num">{{ p.id|fa }}</td>
+        <td class="nowrap">{{ p.published_at|jdt }}</td>
+        <td>{{ PUB_KIND.get(p.kind, p.kind) }}</td>
+        <td class="num">{{ (p.rate_rial // 10)|money }}</td>
+        <td>{{ who(p.published_by) }}</td>
+        <td>{{ who(p.approved_by) }}</td>
+        <td class="nowrap">{{ (p.renewed_until or p.valid_until)|jdt }}{% if p.n_renewals %}<span class="sub small muted">{{ p.n_renewals|fa }} بار تمدید</span>{% endif %}</td>
+        <td class="num">{{ p.n|fa }}</td>
+        <td class="small">{{ p.note or '' }}</td>
+        <td class="nowrap"><a href="{{ url_for('pricelist_page', pub_id=p.id) }}">نمایش</a> | <a href="{{ url_for('pricelist_xlsx', pub_id=p.id) }}">Excel</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

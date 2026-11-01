@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% block title %}پیش‌نمایش ورود کالاها{% endblock %}
+{% block content %}
+<div class="page-title"><h1>پیش‌نمایش تغییر کالاها</h1><p>فایل: <span class="pn">{{ name }}</span>، {{ pv.count|fa }} کالا</p></div>
+
+{% if pv.errors %}
+<section class="alert crit"><div>
+  <h2>فایل خطا دارد و وارد نمی‌شود</h2>
+  <ul>{% for e in pv.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  <p><a class="btn quiet" href="{{ url_for('admin_products') }}">بازگشت و بارگذاری دوباره</a></p>
+</div></section>
+{% else %}
+{% set d = pv.diff %}
+<section class="panel">
+  <header><h2>خلاصه</h2></header>
+  <div class="body">
+    <p>{{ d.added|length|fa }} کالای جدید، {{ d.changed|length|fa }} تغییر در مشخصات، {{ d.removed|length|fa }} کالای حذف‌شده{% if d.reactivated %}، {{ d.reactivated|length|fa }} کالای دوباره فعال{% endif %}.</p>
+    {% if pv.warnings %}<ul class="small">{% for w in pv.warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+    {% if not (d.added or d.changed or d.removed or d.reactivated) %}
+      <p>{{ tag('muted', 'فایل با کالاهای فعلی یکی است؛ تغییری اعمال نمی‌شود.', 'check') }}</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('admin_products_apply') }}" class="inline-form">
+      {{ csrf() }}<input type="hidden" name="token" value="{{ token }}">
+      <button class="btn"{% if not (d.added or d.changed or d.removed or d.reactivated) %} disabled{% endif %}>اعمال تغییرها</button>
+      <a class="btn quiet" href="{{ url_for('admin_products') }}">انصراف</a>
+    </form>
+    <p class="hint">بعد از اعمال، اگر نرخ پذیرفته‌شده‌ای باشد قیمت‌ها خودکار دوباره محاسبه می‌شوند و انتشار تازه لازم می‌شود.</p>
+  </div>
+</section>
+
+{% if d.changed %}
+<section class="panel"><header><h2>تغییر مشخصات</h2></header>
+  <div class="tbl-wrap"><table class="data">
+    <thead><tr><th>کد</th><th>ستون</th><th>مقدار فعلی</th><th>مقدار تازه</th></tr></thead>
+    <tbody>
+    {% for c in d.changed|sort(attribute='important', reverse=true) %}
+      {% set num = c.field in ('base_price_rial', 'moq', 'row_no') %}
+      <tr><td><span class="pn">{{ c.key }}</span></td><td>{{ FIELD_LABELS.get(c.field, c.field) }}{% if c.important %} {{ tag('warn', 'مهم') }}{% endif %}</td>
+        <td class="small">{% if c.old is none %}—{% elif num %}{{ c.old|money }}{% else %}{{ c.old }}{% endif %}</td>
+        <td class="small strong">{% if c.new is none %}—{% elif num %}{{ c.new|money }}{% else %}{{ c.new }}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endif %}
+{% if d.added or d.removed %}
+<section class="panel"><header><h2>کالاهای جدید و حذف‌شده</h2></header>
+  <div class="body">
+    {% if d.added %}<p><b>جدید:</b> {% for k in d.added %}<span class="pn">{{ k }}</span>{% if not loop.last %}، {% endif %}{% endfor %}</p>{% endif %}
+    {% if d.removed %}<p><b>حذف (غیرفعال):</b> {% for k in d.removed %}<span class="pn">{{ k }}</span>{% if not loop.last %}، {% endif %}{% endfor %}</p>{% endif %}
+  </div>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

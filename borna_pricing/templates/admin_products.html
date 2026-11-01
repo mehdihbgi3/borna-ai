@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% block title %}کالاها{% endblock %}
+{% block content %}
+<div class="page-title"><h1>کالاها و قیمت پایه</h1><p>منبع: برگه «محصولات» فایل Excel قدم ۲.</p></div>
+
+<section class="panel" aria-labelledby="up-title">
+  <header><h2 id="up-title">به‌روزرسانی از Excel</h2></header>
+  <div class="body">
+    <p class="small">فایل را در Excel ویرایش کنید (قیمت پایه، α، کالای جدید یا حذف ردیف) و اینجا بارگذاری کنید. پیش از اعمال، تغییرها را می‌بینید. کالای حذف‌شده غیرفعال می‌شود و تاریخچه‌اش می‌ماند.</p>
+    <form method="post" action="{{ url_for('admin_products_preview') }}" enctype="multipart/form-data" class="inline-form">
+      {{ csrf() }}
+      <input type="file" name="file" accept=".xlsx" required>
+      <button class="btn quiet">پیش‌نمایش تغییرها</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="pl-title">
+  <header><h2 id="pl-title">فهرست کالاها</h2>
+    <div class="table-tools"><input type="search" placeholder="جست‌وجو" data-filter-for="products" aria-label="جست‌وجو در کالاها">
+      <span class="small muted"><span data-count-for="products">{{ products|length|fa }}</span> کالا</span></div></header>
+  <div class="tbl-wrap">
+  <table class="data" id="products">
+    <thead><tr><th class="rowno">ردیف</th><th>کد</th><th>نام در لیست قیمت</th><th>پارت‌نامبر</th><th>وضعیت تطبیق</th><th class="num">قیمت پایه (ریال)</th><th class="num">α</th><th class="num">حداقل سفارش</th><th>فعال</th></tr></thead>
+    <tbody>
+    {% for p in products %}
+      <tr>
+        <td class="rowno num">{{ p.row_no|fa }}</td>
+        <td><a class="pn" href="{{ url_for('product', key=p.key) }}">{{ p.key }}</a></td>
+        <td>{{ p.name }}{% if p.note %}<span class="sub">{{ p.note }}</span>{% endif %}</td>
+        <td><span class="pn">{{ p.part_no or '—' }}</span></td>
+        <td class="small">{{ p.status or '—' }}</td>
+        <td class="num">{{ p.base_price_rial|money }}</td>
+        <td class="num">{{ (p.alpha or '—')|fa }}</td>
+        <td class="num">{{ p.moq|fa if p.moq else '—' }}</td>
+        <td>{% if p.active %}{{ tag('good', 'فعال') }}{% else %}{{ tag('muted', 'غیرفعال') }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_ui.html" import rate_tag %}
+{% block title %}تاریخچه نرخ{% endblock %}
+{% block content %}
+<div class="page-title">
+  <h1>تاریخچه نرخ دلار</h1>
+  <nav class="seg" aria-label="بازه زمانی">
+    {% for d, label in [(7, '۷ روز'), (30, '۳۰ روز'), (90, '۹۰ روز'), (365, 'یک سال')] %}
+    <a href="{{ url_for('rates', days=d) }}" aria-current="{{ 'true' if d == days else 'false' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+</div>
+
+<section class="panel" aria-labelledby="chart-title">
+  <header><h2 id="chart-title">نرخ‌های پذیرفته‌شده (تومان)</h2>
+    <span class="small muted">{{ n_acc|fa }} نرخ در {{ days|fa }} روز گذشته؛ خط افقی نرخ مبنای لیست ۱۴۰۵/۰۷/۲۰ است.</span></header>
+  <div class="body">
+    {% if chart %}
+    <div class="chart" aria-describedby="rate-log-title">
+      {{ chart.svg }}
+      <script type="application/json">{{ chart.data }}</script>
+    </div>
+    {% else %}
+    <p class="muted">در این بازه نرخ پذیرفته‌شده‌ای نیست.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="rate-log-title">
+  <header><h2 id="rate-log-title">همه دریافت‌ها و تصمیم‌ها</h2><span class="small muted">جدیدترین بالا؛ {{ log|length|fa }} مورد آخر</span></header>
+  <div class="tbl-wrap">
+  <table class="data">
+    <thead><tr><th>زمان دریافت</th><th>منبع</th><th class="num">نرخ (تومان)</th><th>زمان نرخ در منبع</th><th>وضعیت</th><th>توضیح</th><th>تصمیم</th></tr></thead>
+    <tbody>
+    {% for r in log %}
+      <tr>
+        <td class="nowrap">{{ r.fetched_at|jdt }}</td>
+        <td>{{ RATE_SOURCE.get(r.source, r.source) }}</td>
+        <td class="num">{{ r.value_toman|money if r.value_toman else '—' }}</td>
+        <td class="nowrap">{{ r.source_updated_at|jdt if r.source_updated_at else '—' }}</td>
+        <td>{{ rate_tag(r.status) }}</td>
+        <td class="small">{{ r.message or '' }}</td>
+        <td class="small nowrap">{% if r.decided_by %}{{ who(r.decided_by) }}، {{ r.decided_at|hm }}{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="7">هنوز نرخی دریافت نشده است.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

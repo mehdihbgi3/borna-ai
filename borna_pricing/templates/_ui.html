@@ -1,0 +1,25 @@
+{% macro icon(name, size=14) -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+{%- if name == 'check' %}<path d="M3 8.6l3.1 3L13 4.6"/>
+{%- elif name == 'alert' %}<path d="M8 1.9l6.5 11.6H1.5z"/><path d="M8 6.6v3.1M8 11.5v.2"/>
+{%- elif name == 'stop' %}<circle cx="8" cy="8" r="6.2"/><path d="M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6"/>
+{%- elif name == 'clock' %}<circle cx="8" cy="8" r="6.2"/><path d="M8 4.7V8l2.3 1.5"/>
+{%- elif name == 'info' %}<circle cx="8" cy="8" r="6.2"/><path d="M8 7.3v3.9M8 4.9v.2"/>
+{%- endif %}</svg>
+{%- endmacro %}
+
+{% macro tag(kind, text, ic=None) -%}
+<span class="tag {{ kind }}">{{ icon(ic or {'good': 'check', 'warn': 'alert', 'crit': 'stop', 'info': 'info', 'muted': 'clock'}[kind]) }}{{ text }}</span>
+{%- endmacro %}
+
+{% macro rate_tag(status) -%}
+{%- set kind = {'ok': 'good', 'approved': 'good', 'held': 'warn', 'rejected': 'muted', 'superseded': 'muted', 'error': 'crit', 'stale': 'crit', 'out_of_range': 'crit'}.get(status, 'muted') -%}
+{{ tag(kind, RATE_STATUS.get(status, status)) }}
+{%- endmacro %}
+
+{% macro validity_tag(pub, now) -%}
+{% if pub.is_valid %}{{ tag('good', 'معتبر تا ' ~ (pub.valid_until_eff|when(now))) }}
+{% else %}{{ tag('crit', 'منقضی از ' ~ (pub.valid_until_eff|when(now))) }}{% endif %}
+{%- endmacro %}
+
+{% macro csrf() -%}<input type="hidden" name="_csrf" value="{{ csrf_token() }}">{%- endmacro %}

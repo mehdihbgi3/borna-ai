@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cfg.web.pricelist_title }} شماره {{ pub.id }} — {{ cfg.web.company_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+<script src="{{ url_for('static', filename='app.js') }}?v={{ version }}" defer></script>
+</head>
+<body class="print-page">
+<div class="print-bar no-print">
+  <button class="btn" type="button" data-print>چاپ</button>
+  <a class="btn quiet" href="{{ url_for('pricelist_xlsx', pub_id=pub.id) }}">دانلود Excel</a>
+  <a class="btn quiet" href="{{ url_for('dashboard') }}">بازگشت به داشبورد</a>
+  {% if not pub.is_current %}<a class="btn quiet" href="{{ url_for('pricelist_page') }}">لیست جاری</a>{% endif %}
+</div>
+<div class="sheet">
+  <div class="sheet-head">
+    <div class="title"><b>{{ cfg.web.company_name }}، {{ cfg.web.pricelist_title }}</b><span>شماره {{ pub.id|fa }}</span></div>
+    <dl>
+      <div><dt>تاریخ</dt><dd>{{ pub.published_at|jlong }}، ساعت {{ pub.published_at|hm }}</dd></div>
+      <div><dt>اعتبار: {{ cfg.web.validity_text }}</dt><dd>{{ pub.valid_until_eff|weekday }} {{ pub.valid_until_eff|jdate }}، ساعت {{ pub.valid_until_eff|hm }}</dd></div>
+      {% if cfg.web.show_rate_on_pricelist %}<div><dt>مبنای نرخ دلار</dt><dd><span class="num">{{ (pub.rate_rial // 10)|money }}</span> تومان</dd></div>{% endif %}
+    </dl>
+  </div>
+  {% if not pub.is_valid %}
+  <p class="expired-stamp">این لیست از {{ pub.valid_until_eff|when(now) }} اعتبار ندارد{% if not pub.is_current %} و لیست تازه‌تری منتشر شده است{% endif %}.</p>
+  {% endif %}
+  <table class="data">
+    <thead><tr><th class="rowno">ردیف</th><th>نام محصول</th><th>پارت‌نامبر</th><th class="num">حداقل تعداد</th><th class="num">قیمت هر عدد (ریال)</th><th class="num">به تومان</th></tr></thead>
+    <tbody>
+    {% for r in pub.rows %}
+      <tr>
+        <td class="rowno num">{{ r.row_no|fa }}</td>
+        <td>{{ r.name }}</td>
+        <td><span class="pn">{{ r.part_no or '—' }}</span></td>
+        <td class="num">{{ r.moq|fa if r.moq else '—' }}</td>
+        <td class="num strong">{{ r.price_rial|money }}</td>
+        <td class="num">{{ r.price_rial|toman }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="foot">
+    <span>{{ cfg.web.footer_note or 'قیمت‌ها بر پایه نرخ روز دلار محاسبه شده و فقط در مدت اعتبار بالا معتبر است.' }}</span>
+    <span>تهیه: {{ now|jdt }}، {{ who(user.username) }}</span>
+  </div>
+</div>
+</body>
+</html>

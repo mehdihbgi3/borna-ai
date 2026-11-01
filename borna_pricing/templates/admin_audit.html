@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}رویدادها{% endblock %}
+{% block content %}
+<div class="page-title">
+  <h1>رویدادها</h1>
+  <form method="get" class="inline-form">
+    <label class="field">نوع رویداد
+      <select name="action">
+        <option value="">همه</option>
+        {% for a in actions %}<option value="{{ a }}"{% if a == action %} selected{% endif %}>{{ AUDIT_LABELS.get(a, a) }}</option>{% endfor %}
+      </select></label>
+    <button class="btn quiet small">نمایش</button>
+  </form>
+</div>
+<section class="panel">
+  <div class="tbl-wrap">
+  <table class="data">
+    <thead><tr><th>زمان</th><th>کاربر</th><th>رویداد</th><th>جزئیات</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="nowrap">{{ r.at|jdt }}</td>
+        <td>{{ who(r.username) }}</td>
+        <td class="nowrap">{{ AUDIT_LABELS.get(r.action, r.action) }}</td>
+        <td><ul class="details-list">{% for k, v in r.details_obj.items() if v not in (none, '', []) %}<li><span class="muted">{{ AUDIT_KEYS.get(k, k) }}:</span> {{ audit_value(k, v) }}</li>{% endfor %}</ul></td>
+      </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="4">رویدادی نیست.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

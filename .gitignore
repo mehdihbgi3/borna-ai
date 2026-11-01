@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+settings.ini
+data/*.sqlite3*
+data/secret.key
+data/*.log*
+data/backups/
+data/uploads/
+*.zip

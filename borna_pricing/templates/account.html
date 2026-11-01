@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_ui.html" import csrf %}
+{% block title %}حساب کاربری{% endblock %}
+{% block content %}
+<div class="page-title"><h1>تغییر رمز عبور</h1><p>{{ user.full_name or user.username }}، {{ ROLE_LABELS[user.role] }}</p></div>
+<section class="panel" style="max-width:460px">
+  <div class="body">
+    <form method="post" style="display:grid; gap:12px">
+      {{ csrf() }}
+      <label class="field">رمز فعلی<input type="password" name="current" required dir="ltr" autocomplete="current-password"></label>
+      <label class="field">رمز تازه (دست‌کم ۸ نویسه)<input type="password" name="new" required dir="ltr" autocomplete="new-password"></label>
+      <label class="field">تکرار رمز تازه<input type="password" name="repeat" required dir="ltr" autocomplete="new-password"></label>
+      <div><button class="btn">ذخیره رمز تازه</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

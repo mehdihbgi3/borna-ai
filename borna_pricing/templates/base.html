@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} — قیمت‌گذاری {{ cfg.web.company_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+<script src="{{ url_for('static', filename='app.js') }}?v={{ version }}" defer></script>
+</head>
+<body>
+{% from "_ui.html" import csrf %}
+{% set nav = [
+  ('dashboard', 'داشبورد', 'viewer'),
+  ('pricelist_page', 'لیست قیمت', 'viewer'),
+  ('rates', 'تاریخچه نرخ', 'viewer'),
+  ('publications', 'انتشارها', 'viewer'),
+  ('admin_products', 'کالاها', 'admin'),
+  ('admin_users', 'کاربران', 'admin'),
+  ('admin_audit', 'رویدادها', 'admin'),
+  ('admin_settings', 'تنظیمات', 'admin'),
+] %}
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="{{ url_for('dashboard') }}"><b>{{ cfg.web.company_name }}</b><span>قیمت‌گذاری ارزی</span></a>
+    {% if user %}
+    <nav class="nav" aria-label="بخش‌ها">
+      {% for ep, label, role in nav if can(role) %}
+      <a href="{{ url_for(ep) }}"{% if request.endpoint == ep or (ep == 'admin_products' and request.endpoint and request.endpoint.startswith('admin_products')) %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="who">
+      <a href="{{ url_for('account') }}" title="تغییر رمز">{{ user.full_name or user.username }}، {{ ROLE_SHORT[user.role] }}</a>
+      <form method="post" action="{{ url_for('logout') }}">{{ csrf() }}<button class="linkbtn">خروج</button></form>
+    </div>
+    {% endif %}
+  </div>
+</header>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flashes" role="status">
+    {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="site">
+  سامانه قیمت‌گذاری برنا، نسخه {{ version|fa }} — زمان سرور: {{ now|jdt }} (تهران)
+</footer>
+</body>
+</html>

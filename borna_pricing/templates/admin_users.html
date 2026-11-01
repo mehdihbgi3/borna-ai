@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% block title %}کاربران{% endblock %}
+{% block content %}
+<div class="page-title"><h1>کاربران</h1><p>فروش فقط لیست رسمی را می‌بیند؛ تأییدکننده نرخ و انتشار را تأیید می‌کند؛ مدیر سامانه همه کارها را.</p></div>
+
+<section class="panel" aria-labelledby="new-user">
+  <header><h2 id="new-user">کاربر تازه</h2></header>
+  <div class="body">
+    <form method="post" class="inline-form">
+      {{ csrf() }}<input type="hidden" name="action" value="create">
+      <label class="field">نام کاربری (انگلیسی)<input type="text" name="username" required dir="ltr" size="14" autocomplete="off"></label>
+      <label class="field">نام و نام خانوادگی<input type="text" name="full_name" size="18"></label>
+      <label class="field">نقش<select name="role">{% for r in ROLES %}<option value="{{ r }}">{{ ROLE_LABELS[r] }}</option>{% endfor %}</select></label>
+      <label class="field">رمز (دست‌کم ۸ نویسه)<input type="password" name="password" required dir="ltr" size="14" autocomplete="new-password"></label>
+      <button class="btn">ساخت کاربر</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="tbl-wrap">
+  <table class="data">
+    <thead><tr><th>نام کاربری</th><th>نام</th><th>نقش</th><th>وضعیت</th><th>آخرین ورود</th><th>تغییر</th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td><span class="pn">{{ u.username }}</span></td>
+        <td>{{ u.full_name or '—' }}</td>
+        <td>{{ ROLE_LABELS[u.role] }}</td>
+        <td>{% if u.active %}{{ tag('good', 'فعال') }}{% else %}{{ tag('muted', 'غیرفعال') }}{% endif %}</td>
+        <td class="nowrap">{{ u.last_login|jdt if u.last_login else '—' }}</td>
+        <td>
+          <form method="post" class="inline-form">
+            {{ csrf() }}<input type="hidden" name="action" value="update"><input type="hidden" name="user_id" value="{{ u.id }}">
+            <input type="hidden" name="full_name" value="{{ u.full_name or '' }}">
+            <select name="role" aria-label="نقش">{% for r in ROLES %}<option value="{{ r }}"{% if r == u.role %} selected{% endif %}>{{ ROLE_LABELS[r] }}</option>{% endfor %}</select>
+            <select name="active" aria-label="وضعیت"><option value="1"{% if u.active %} selected{% endif %}>فعال</option><option value="0"{% if not u.active %} selected{% endif %}>غیرفعال</option></select>
+            <input type="password" name="password" placeholder="رمز تازه (اختیاری)" dir="ltr" size="14" autocomplete="new-password">
+            <button class="btn quiet small">ذخیره</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
