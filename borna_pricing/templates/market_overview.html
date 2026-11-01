@@ -18,19 +18,21 @@
   <div class="kpi"><dt>منتظر تأیید تطبیق</dt><dd>{% if can('approver') %}<a href="{{ url_for('market_review') }}">{{ k.to_review|fa }}</a>{% else %}{{ k.to_review|fa }}{% endif %}</dd></div>
   <div class="kpi"><dt>قیمت منتظر بررسی</dt><dd>{% if can('approver') %}<a href="{{ url_for('market_observations') }}">{{ k.obs_review|fa }}</a>{% else %}{{ k.obs_review|fa }}{% endif %}</dd></div>
   <div class="kpi"><dt>آگهی بدون تطبیق</dt><dd><a href="{{ url_for('market_listings', state='unmatched') }}">{{ k.unmatched|fa }}</a></dd></div>
-  <div class="kpi"><dt>آخرین پایش خودکار</dt><dd class="small">{{ k.last_watch|jdt if k.last_watch else 'هنوز انجام نشده' }}</dd></div>
+  <div class="kpi"><dt>آخرین پایش</dt><dd class="small">{{ k.last_watch|jdt if k.last_watch else 'هنوز انجام نشده' }}</dd></div>
 </dl>
 
 <section class="panel" aria-labelledby="pos-title">
   <header><h2 id="pos-title">جایگاه قیمت هر کالا (تومان)</h2>
-    <div class="table-tools"><input type="search" placeholder="جست‌وجو" data-filter-for="mkt" aria-label="جست‌وجو در کالاها">
-      <span class="small muted"><span data-count-for="mkt">{{ ov.table|length|fa }}</span> کالا</span></div></header>
+    <div class="table-tools">
+      {% if n_data and n_data < ov.table|length %}<div class="seg"><a href="{{ url_for('market_overview') }}"{% if not show_all %} aria-current="true"{% endif %}>دارای داده ({{ n_data|fa }})</a><a href="{{ url_for('market_overview', all=1) }}"{% if show_all %} aria-current="true"{% endif %}>همه ({{ ov.table|length|fa }})</a></div>{% endif %}
+      <input type="search" placeholder="جست‌وجو" data-filter-for="mkt" aria-label="جست‌وجو در کالاها">
+      <span class="small muted"><span data-count-for="mkt">{{ rows|length|fa }}</span> کالا</span></div></header>
   <div class="body small muted">قیمت رسمی برنا عمده است (حداقل سفارش ۱۰۰ عدد). «فاصله برنا» با میانه قیمت عمده رقبای هم‌طرح سنجیده می‌شود و اگر قیمت عمده نباشد با خرده‌فروشی؛ قیمت خرده‌فروشی سود فروشنده را هم دارد. جایگزین‌ها (طرح دیگر برای همان خودرو) جدا حساب می‌شوند.</div>
   <div class="tbl-wrap">
   <table class="data" id="mkt">
     <thead><tr><th>کد</th><th>کالا</th><th class="num">قیمت رسمی برنا</th><th class="num">میانه عمده رقبا</th><th class="num">میانه خرده رقبا</th><th>فاصله برنا</th><th>ارزان‌ترین رقیب</th><th class="num">آگهی</th><th class="num">ناموجود</th><th class="num">منتظر تأیید</th><th class="num">خرده خود برنا</th></tr></thead>
     <tbody>
-    {% for r in ov.table %}
+    {% for r in rows %}
       <tr>
         <td><a class="pn" href="{{ url_for('market_product', key=r.product.key) }}">{{ r.product.key }}</a></td>
         <td>{{ r.product.name }}</td>

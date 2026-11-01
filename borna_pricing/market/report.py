@@ -69,7 +69,8 @@ def build(ms, end: datetime) -> dict:
             where = LEVEL_LABELS[level]
             insights.append({"kind": "position", "key": p["key"],
                              "text": f"{p['name']} ({p['key']}): قیمت رسمی برنا {fmt.pct_plain_words(abs(position))} "
-                                     f"{side} از میانه قیمت {where} رقبای هم‌طرح است ({len(eq_now)} آگهی)."
+                                     f"{side} از میانه قیمت {where} رقبای هم‌طرح است "
+                                     f"({fmt.fa(st[level]['n_priced'])} قیمت)."
                                      + (" قیمت برنا عمده است و رقبا خرده‌فروشی؛ فاصله شامل سود فروشنده است."
                                         if level == "retail" else "")})
         if fx_chg is not None and comp_chg is not None and abs(fx_chg) >= Decimal("0.02"):

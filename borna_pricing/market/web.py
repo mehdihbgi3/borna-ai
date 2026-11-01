@@ -77,7 +77,11 @@ def register(app, svc, ms, h: SimpleNamespace) -> None:
     @app.get("/market")
     @need()
     def market_overview():
-        return render_template("market_overview.html", ov=ms.overview())
+        ov = ms.overview()
+        with_data = [r for r in ov["table"] if r["has_data"]]
+        show_all = request.args.get("all") == "1" or not with_data
+        return render_template("market_overview.html", ov=ov, rows=ov["table"] if show_all else with_data,
+                               show_all=show_all, n_data=len(with_data))
 
     @app.get("/market/products/<key>")
     @need()
@@ -248,7 +252,7 @@ def register(app, svc, ms, h: SimpleNamespace) -> None:
     @need("approver")
     def market_source(source_id):
         s = ms.get_source(source_id)
-        if s is None:
+        if s is None or s["kind"] == "manual":
             abort(404)
         test = None
         form = dict(s, start_urls="\n".join(s["start_urls"]))

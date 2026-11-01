@@ -28,7 +28,7 @@
     <header><h2>خلاصه قیمت (تومان)</h2></header>
     <div class="body">
       <dl class="kv">
-        <dt>قیمت رسمی برنا</dt><dd class="strong">{{ toman(d.official) }}{% if d.official and d.rate %} <span class="small muted">≈ {{ (d.official / (d.rate.value_toman * 10))|round(2)|string|fa }} دلار</span>{% endif %}</dd>
+        <dt>قیمت رسمی برنا</dt><dd class="strong">{{ toman(d.official) }}{% if d.official and d.rate %} <span class="small muted">≈ {{ (d.official / (d.rate.value_toman * 10))|round(2)|string|replace('.', '٫')|fa }} دلار</span>{% endif %}</dd>
         {% for lv in ('wholesale', 'retail', 'unknown') %}{% set s = d.stats[lv] %}{% if s.n %}
         <dt>رقبای هم‌طرح، {{ LEVEL_LABELS[lv] }}</dt><dd>میانه {{ toman(s.median) }} · کمترین {{ toman(s.min) }} · بیشترین {{ toman(s.max) }} <span class="small muted">({{ s.n_priced|fa }} قیمت{% if s.oos %}، {{ s.oos|fa }} ناموجود{% endif %})</span></dd>
         {% endif %}{% endfor %}
@@ -39,7 +39,7 @@
 </div>
 
 {% if chart %}
-<section class="panel"><header><h2>میانه قیمت رقبای هم‌طرح در زمان (ریال)</h2></header>
+<section class="panel"><header><h2>میانه قیمت {{ LEVEL_LABELS[d.series_level] }} رقبای هم‌طرح در زمان (ریال)</h2></header>
   <div class="body"><div class="chart">{{ chart.svg }}<script type="application/json">{{ chart.data }}</script></div></div>
 </section>
 {% endif %}

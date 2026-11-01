@@ -149,7 +149,10 @@ def test_sales_manual_entry_then_approval(env):
     fin = app.test_client()
     ftok = login(fin, "finance", "finance-pass")
     page = text(fin.get("/market/observations"))
-    assert "بنکدار الف" in page and "در انتظار تأیید" in page
+    assert "بنکدار الف" in page and "در انتظار تأیید" in page and "FIB201-400" in page
+    assert "بنکدار الف" not in text(fin.get("/market/review"))
+    manual_src = next(s for s in ms.sources() if s["kind"] == "manual")
+    assert fin.get(f"/market/sources/{manual_src['id']}").status_code == 404
     oid = ms.observations_to_review()[0]["id"]
     snap_id = ms.observations_to_review()[0]["snapshot_id"]
     img = sales.get(f"/market/evidence/{snap_id}")

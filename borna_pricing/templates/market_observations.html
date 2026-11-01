@@ -11,7 +11,7 @@
     <tbody>
     {% for o in rows %}
       <tr>
-        <td><a href="{{ url_for('market_listing', listing_id=o.listing_id) }}">{{ o.title }}</a>{% if o.seller %}<span class="sub">{{ o.seller }}</span>{% endif %}</td>
+        <td><a href="{{ url_for('market_listing', listing_id=o.listing_id) }}">{{ o.title }}</a>{% if o.seller %}<span class="sub">{{ o.seller }}</span>{% endif %}{% if o.product_key %}<span class="sub">کالای برنا: <span class="pn">{{ o.product_key }}</span>{% if o.status == 'pending' %} (با تأیید قیمت، تطبیق هم ثبت می‌شود){% endif %}</span>{% endif %}</td>
         <td>{{ o.source_name }}</td>
         <td class="num strong">{% if o.kind == 'price' %}{{ o.price_rial|toman }}{% else %}بدون قیمت{% endif %}<span class="sub">متن: {{ o.raw_price or '—' }} ({{ UNIT_LABELS[o.unit] }})</span></td>
         <td class="num">{{ o.prev_rial|toman if o.prev_rial else '—' }}</td>

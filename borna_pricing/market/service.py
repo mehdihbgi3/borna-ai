@@ -8,7 +8,7 @@ import threading
 import urllib.parse
 from datetime import datetime, timedelta
 
-from .. import db
+from .. import db, fmt
 from ..clock import TEHRAN, iso, now_utc, parse_iso
 from ..service import ServiceError
 from . import catalog, evidence, extract, matching, prices, textnorm as tn
@@ -264,16 +264,16 @@ class MarketService:
             lo, hi = prices.usd_bounds_rial(m.min_price_usd, m.max_price_usd,
                                             rate["value_toman"] if rate else self.cfg.pricing.base_rate_toman)
             if not prices.in_range(pp.value_rial, lo, hi):
-                status, note = "quarantined", (f"قیمت {pp.value_rial // 10:,} تومان بیرون از بازه مجاز "
-                                               f"({lo // 10:,} تا {hi // 10:,} تومان، معادل {m.min_price_usd} تا "
-                                               f"{m.max_price_usd} دلار) است؛ احتمالاً واحد (تومان/ریال) یا خواندن "
-                                               "صفحه اشتباه است.")
+                status, note = "quarantined", (f"قیمت {fmt.money(pp.value_rial // 10)} تومان بیرون از بازه مجاز "
+                                               f"({fmt.money(lo // 10)} تا {fmt.money(hi // 10)} تومان، معادل "
+                                               f"{fmt.fa(m.min_price_usd)} تا {fmt.fa(m.max_price_usd)} دلار) است؛ "
+                                               "احتمالاً واحد (تومان/ریال) یا خواندن صفحه اشتباه است.")
             else:
                 prev = c.execute("SELECT price_rial FROM observations WHERE external_product_id=? AND status='ok'"
                                  " AND kind='price' ORDER BY observed_at DESC, id DESC LIMIT 1", (eid,)).fetchone()
                 j = prices.jump(pp.value_rial, prev["price_rial"] if prev else None)
                 if j is not None and abs(j) > m.jump_quarantine:
-                    status, note = "quarantined", (f"تغییر {float(j) * 100:+.0f}٪ نسبت به قیمت قبلی همین آگهی؛ "
+                    status, note = "quarantined", (f"تغییر {fmt.pct(j, 0)} نسبت به قیمت قبلی همین آگهی؛ "
                                                    "پیش از استفاده بررسی شود.")
         try:
             oid = c.execute(
@@ -716,6 +716,7 @@ class MarketService:
                           "position": (official / ref - 1) if official and ref else None, "ref_level": ref_level,
                           "cheapest": cheapest, "pending": pending.get(p["key"], 0),
                           "oos": sum(1 for r in comp if r["obs"]["availability"] == "out_of_stock")})
+            table[-1]["has_data"] = bool(table[-1]["n_listings"] or table[-1]["own_price"] or table[-1]["pending"])
         return {"now": now, "kpi": kpi, "table": table, "publication": off["publication"]}
 
     def product_market(self, key: str) -> dict | None:
@@ -727,7 +728,8 @@ class MarketService:
             off = self._official(c)
             rows = self.competitor_rows(c, product_key=key)
             history = [dict(r) for r in c.execute(
-                "SELECT o.external_product_id, o.observed_at, o.price_rial, o.kind, o.availability FROM observations o"
+                "SELECT o.external_product_id, o.observed_at, o.price_rial, o.kind, o.availability, o.price_level"
+                " FROM observations o"
                 " JOIN matches m ON m.external_product_id=o.external_product_id AND m.status='approved' AND m.product_key=?"
                 " JOIN external_products e ON e.id=o.external_product_id WHERE o.status='ok' AND e.is_own=0"
                 " AND m.relation='equivalent' ORDER BY o.observed_at, o.id", (key,))]
@@ -737,6 +739,9 @@ class MarketService:
                 " AND m.status='proposed' ORDER BY m.score DESC", (key,))]
             specs = self.specs(key)
             rate = self._rate_at(c, iso(now_utc()))
+        levels = {h["price_level"] for h in history if h["kind"] == "price"}
+        series_level = next((lv for lv in ("wholesale", "retail", "unknown") if lv in levels), None)
+        history = [h for h in history if h["price_level"] == series_level]
         current: dict[int, int] = {}
         series = []
         for h in history:
@@ -751,7 +756,7 @@ class MarketService:
         return {"product": dict(prod), "profile": prof, "profile_rows": catalog.describe(prof),
                 "official": off["prices"].get(key), "rows": rows,
                 "stats": self.stats([r for r in rows if r["fresh"] and not r["is_own"] and r["relation"] == "equivalent"]),
-                "series": series, "proposals": proposals, "specs": specs, "rate": rate}
+                "series": series, "series_level": series_level, "proposals": proposals, "specs": specs, "rate": rate}
 
     def listings(self, state: str | None = None, source_id: int | None = None, limit: int = 1000) -> list[dict]:
         sql = ("SELECT e.*, s.name AS source_name, s.kind AS source_kind,"
@@ -813,10 +818,14 @@ class MarketService:
                 e["proposals"] = []
                 e["rejected"] = []
                 for m in ms:
+                    if m["verdict"] == "manual" and m["status"] == "proposed":
+                        continue
                     m["reasons_l"] = matching.reason_labels(_j(m["reasons"], []))
                     m["product_name"] = names.get(m["product_key"], m["product_key"])
                     m["profile"] = profiles.get(m["product_key"])
                     (e["proposals"] if m["status"] == "proposed" else e["rejected"]).append(m)
+                if not e["proposals"]:
+                    continue
                 e["best_rank"] = min((matching.VERDICT_RANK[m["verdict"]] for m in e["proposals"]), default=9)
                 e["best_score"] = max((m["score"] for m in e["proposals"]), default=0)
                 out.append(e)
@@ -828,7 +837,10 @@ class MarketService:
             return [dict(r) for r in c.execute(
                 "SELECT o.*, e.title, e.seller, e.id AS listing_id, s.name AS source_name, sn.kind AS ev_kind,"
                 " (SELECT price_rial FROM observations p WHERE p.external_product_id=o.external_product_id"
-                "  AND p.status='ok' AND p.kind='price' AND p.id!=o.id ORDER BY p.observed_at DESC LIMIT 1) AS prev_rial"
+                "  AND p.status='ok' AND p.kind='price' AND p.id!=o.id ORDER BY p.observed_at DESC LIMIT 1) AS prev_rial,"
+                " (SELECT m.product_key FROM matches m WHERE m.external_product_id=o.external_product_id"
+                "  AND m.status IN ('approved','proposed') AND (m.status='approved' OR m.verdict='manual')"
+                "  ORDER BY m.status='approved' DESC LIMIT 1) AS product_key"
                 " FROM observations o JOIN external_products e ON e.id=o.external_product_id"
                 " JOIN sources s ON s.id=e.source_id JOIN snapshots sn ON sn.id=o.snapshot_id"
                 " WHERE o.status IN ('pending','quarantined') ORDER BY o.id")]
