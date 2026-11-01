@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag %}
+{% from "_market.html" import subnav with context %}
+{% block title %}منبع‌های بازار{% endblock %}
+{% block content %}
+<div class="page-title"><h1>منبع‌های قیمت</h1>{% if can('admin') %}<p><a class="btn" href="{{ url_for('market_source_new') }}">منبع تازه</a></p>{% endif %}</div>
+{{ subnav('market_sources') }}
+<section class="panel" style="margin-top:0">
+  <div class="body small muted">هر سایت فقط بعد از اینکه مدیر سامانه robots.txt و شرایط استفاده‌اش را بررسی و «مجاز» کند خوانده می‌شود. سامانه از کپچا، صفحه ورود یا محدودیت سایت‌ها عبور نمی‌کند.</div>
+  <div class="tbl-wrap"><table class="data">
+    <thead><tr><th>منبع</th><th>نوع</th><th>دامنه</th><th>مجوز پایش</th><th>سطح قیمت</th><th class="num">آگهی / تطبیق</th><th>آخرین اجرا</th><th>سلامت</th></tr></thead>
+    <tbody>
+    {% for s in sources %}
+      <tr>
+        <td>{% if s.kind != 'manual' %}<a href="{{ url_for('market_source', source_id=s.id) }}">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}{% if not s.active %} {{ tag('muted', 'غیرفعال') }}{% endif %}<span class="sub pn">{{ s.key }}</span></td>
+        <td>{{ SOURCE_KINDS[s.kind] }}</td>
+        <td><span class="pn">{{ s.domain or '—' }}</span></td>
+        <td>{% if s.kind == 'manual' %}—{% else %}{{ tag({'approved':'good','pending':'warn','blocked':'crit'}[s.policy_status], POLICY_LABELS[s.policy_status]) }}{% endif %}</td>
+        <td>{{ LEVEL_LABELS[s.price_level] }}<span class="sub">{{ UNIT_LABELS[s.unit] }}</span></td>
+        <td class="num">{{ s.n_listings|fa }} / {{ s.n_matched|fa }}</td>
+        <td class="small">{{ s.last_run_at|jdt if s.last_run_at else '—' }}</td>
+        <td>{% if s.failure_count %}{{ tag('crit', s.failure_count|fa ~ ' خطای پشت سر هم') }}<span class="sub">{{ (s.last_error or '')[:120] }}</span>{% elif s.last_success_at %}{{ tag('good', 'سالم') }}{% else %}<span class="muted">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

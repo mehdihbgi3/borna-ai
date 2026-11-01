@@ -337,3 +337,32 @@ code { font-size: 13px; background: var(--paper-2); padding: 1px 6px; border-rad
 @media (prefers-reduced-motion: reduce) {
   .meter .needle { animation: none; }
 }
+
+
+.subnav { display: flex; gap: 2px; flex-wrap: wrap; margin: -6px 0 18px; border-bottom: 1px solid var(--rule); }
+.subnav a { padding: 7px 12px; color: var(--ink-2); font-size: 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.subnav a:hover { text-decoration: none; color: var(--ink); }
+.subnav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 650; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0; background: var(--paper); border: 1px solid var(--rule); }
+.kpi { padding: 12px 16px; border-inline-start: 1px solid var(--rule); }
+.kpi:first-child { border-inline-start: 0; }
+.kpi dt { font-size: 12.5px; color: var(--ink-3); }
+.kpi dd { margin: 2px 0 0; font-size: 20px; font-weight: 700; }
+.kpi dd.small { font-size: 13px; font-weight: 500; }
+.review-item { border-inline-start: 4px solid var(--warn); }
+.review-item.strong { border-inline-start-color: var(--good); }
+.proposal { border-top: 1px solid var(--rule-2); padding: 12px 18px; }
+.proposal:first-of-type { border-top: 0; }
+.reasons { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+table.compare { margin-top: 6px; max-width: 760px; }
+table.compare td.same-yes { background: var(--good-wash); }
+table.compare td.same-no { background: var(--crit-wash); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; }
+.form-grid .wide { grid-column: 1 / -1; }
+.form-grid textarea { min-height: 84px; }
+.pos-cheaper { color: var(--good-ink); font-weight: 650; }
+.pos-pricier { color: var(--crit-ink); font-weight: 650; }
+.insights { margin: 0; padding-inline-start: 18px; }
+.insights li { margin-bottom: 6px; }
+details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+table.data tr.same td { color: var(--ink-3); }

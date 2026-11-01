@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% from "_market.html" import subnav, tier_tag, verdict_tag, reasons, obs_tag, compare_table with context %}
+{% block title %}آگهی {{ e.id }}{% endblock %}
+{% block content %}
+<div class="page-title"><h1>{{ e.title }}</h1><p>{{ e.source_name }}{% if e.seller %} · {{ e.seller }}{% endif %}{% if e.url %} · <a href="{{ e.url }}" rel="noopener noreferrer nofollow" target="_blank">صفحه آگهی</a>{% endif %}</p></div>
+{{ subnav('market_listings') }}
+<div class="cols">
+  <section class="panel" style="margin-top:0">
+    <header><h2>آنچه از عنوان آگهی خوانده شد</h2></header>
+    <div class="body">
+      <dl class="kv">
+        <dt>نوع کالا</dt><dd>{{ 'سنسور اکسیژن' if e.attrs_d.family == 'o2' else 'سنسور اکسیژن نیست' }}</dd>
+        {% for attr in ('part_nos', 'brand', 'design', 'ecus', 'socket_color', 'wire_color', 'length_mm', 'length_class', 'wire_count', 'position', 'vehicles') %}{% if e.attrs_d.get(attr) %}
+        <dt>{{ {'part_nos':'پارت‌نامبر','brand':'برند','design':'طرح','ecus':'ECU','socket_color':'رنگ سوکت','wire_color':'رنگ سیم','length_mm':'طول سیم','length_class':'رده طول','wire_count':'تعداد سیم','position':'موقعیت','vehicles':'خودرو'}[attr] }}</dt><dd>{{ attr_display(attr, e.attrs_d[attr]) }}</dd>
+        {% endif %}{% endfor %}
+        <dt>اصالت</dt><dd>{{ tier_tag(e.tier) }}{% if e.tier_by %} <span class="small muted">تعیین‌شده توسط {{ who(e.tier_by) }}</span>{% endif %}</dd>
+        <dt>وضعیت تطبیق</dt><dd>{{ STATE_LABELS[e.match_state] }}</dd>
+        <dt>اولین و آخرین بار</dt><dd class="small">{{ e.first_seen_at|jdt }} — {{ e.last_seen_at|jdt }}</dd>
+      </dl>
+    </div>
+  </section>
+  {% if can('approver') %}
+  <section class="panel" style="margin-top:0">
+    <header><h2>تصمیم کارشناس</h2></header>
+    <div class="body">
+      <form method="post" action="{{ url_for('market_listing_link', listing_id=e.id) }}" class="inline-form">{{ csrf() }}
+        <label class="field">وصل کردن به کالای برنا<select name="product_key" required><option value="">انتخاب کالا</option>{% for p in products %}<option value="{{ p.key }}">{{ p.key }} — {{ p.name }}</option>{% endfor %}</select></label>
+        <label class="field">توضیح<input type="text" name="note"></label>
+        <button class="btn quiet">ثبت تطبیق دستی</button>
+      </form>
+      <form method="post" action="{{ url_for('market_listing_tier', listing_id=e.id) }}" class="inline-form" style="margin-top:12px">{{ csrf() }}
+        <label class="field">اصالت<select name="tier">{% for k, v in TIER_LABELS.items() %}<option value="{{ k }}"{% if e.tier == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+        <button class="btn quiet">ثبت اصالت</button>
+      </form>
+      <form method="post" action="{{ url_for('market_listing_own', listing_id=e.id) }}" class="inline-form" style="margin-top:12px">{{ csrf() }}
+        <input type="hidden" name="own" value="{{ '0' if e.is_own else '1' }}">
+        <button class="btn quiet">{{ 'این آگهی مال برنا نیست' if e.is_own else 'این آگهی مال خود برناست' }}</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<section class="panel"><header><h2>تطبیق‌ها</h2></header>
+  {% for m in e.matches %}
+  <div class="proposal">
+    <div class="table-tools"><div><a class="pn" href="{{ url_for('market_product', key=m.product_key) }}">{{ m.product_key }}</a> {{ m.product_name or '' }} {{ verdict_tag(m.verdict) }}
+      {{ tag({'approved':'good','proposed':'warn','rejected':'muted'}[m.status], {'approved':'تأییدشده','proposed':'پیشنهاد','rejected':'ردشده'}[m.status]) }}
+      {% if m.decided_by %}<span class="small muted">{{ who(m.decided_by) }}، {{ m.decided_at|jdt }}{% if m.note %}، {{ m.note }}{% endif %}</span>{% endif %}</div>
+      {% if can('approver') %}<div class="inline-form">
+        {% if m.status == 'proposed' %}
+        <form method="post" action="{{ url_for('market_match_decide', match_id=m.id) }}">{{ csrf() }}<input type="hidden" name="next" value="{{ request.path }}"><input type="hidden" name="decision" value="accept"><button class="btn small">تأیید</button></form>
+        <form method="post" action="{{ url_for('market_match_decide', match_id=m.id) }}">{{ csrf() }}<input type="hidden" name="next" value="{{ request.path }}"><input type="hidden" name="decision" value="reject"><button class="btn small quiet">رد</button></form>
+        {% elif m.status == 'approved' %}
+        <form method="post" action="{{ url_for('market_match_unlink', match_id=m.id) }}">{{ csrf() }}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn small danger">لغو تطبیق</button></form>
+        {% endif %}</div>{% endif %}
+    </div>
+    {{ reasons(m.reasons_l) }}
+    {% if m.status != 'rejected' %}{{ compare_table(m.compare) }}{% endif %}
+  </div>
+  {% else %}
+  <div class="body muted">{% if e.attrs_d.family != 'o2' %}این آگهی سنسور اکسیژن تشخیص داده نشد.{% else %}کالای برنای سازگاری پیدا نشد؛ اگر می‌دانید کدام کالاست، دستی وصل کنید.{% endif %}</div>
+  {% endfor %}
+</section>
+
+<section class="panel"><header><h2>تاریخچه قیمت این آگهی</h2></header>
+  <div class="tbl-wrap"><table class="data">
+    <thead><tr><th>زمان</th><th class="num">قیمت (تومان)</th><th>موجودی</th><th>سطح</th><th>ورود</th><th>وضعیت</th><th>مدرک</th></tr></thead>
+    <tbody>{% for o in e.observations %}
+      <tr><td class="small">{{ o.observed_at|jdt }}</td>
+        <td class="num">{% if o.kind == 'price' %}{{ o.price_rial|toman }}{% else %}<span class="muted">بدون قیمت</span>{% endif %}<span class="sub">متن: {{ o.raw_price or '—' }} ({{ UNIT_LABELS[o.unit] }})</span></td>
+        <td>{{ AVAILABILITY_LABELS[o.availability] }}</td><td>{{ LEVEL_LABELS[o.price_level] }}{% if o.min_qty %}<span class="sub">حداقل {{ o.min_qty|fa }}</span>{% endif %}</td>
+        <td>{{ 'پایش خودکار' if o.entry == 'crawl' else 'دستی' }}<span class="sub">{{ who(o.created_by) }}</span></td>
+        <td>{{ obs_tag(o.status) }}{% if o.status_note %}<span class="sub">{{ o.status_note }}</span>{% endif %}</td>
+        <td><a href="{{ url_for('market_evidence', snapshot_id=o.snapshot_id) }}">{{ {'page':'صفحه','upload':'فایل','note':'یادداشت'}[o.ev_kind] }}</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

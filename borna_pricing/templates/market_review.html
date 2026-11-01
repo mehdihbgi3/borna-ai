@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% from "_market.html" import subnav, tier_tag, verdict_tag, reasons, obs_price, compare_table with context %}
+{% block title %}تأیید تطبیق{% endblock %}
+{% block content %}
+<div class="page-title"><h1>تأیید تطبیق آگهی‌ها</h1><p>{{ queue|length|fa }} آگهی منتظر تصمیم کارشناس</p></div>
+{{ subnav('market_review') }}
+<div class="alert info"><div>
+  <p>ایجنت تطبیق‌دهنده فقط پیشنهاد می‌دهد. یک آگهی وقتی در مقایسه قیمت حساب می‌شود که اینجا به یک کالای برنا وصل شود. سبز یعنی ویژگی آگهی و کالا یکی است و قرمز یعنی فرق دارد.</p>
+  {% if n_strong %}<form method="post" action="{{ url_for('market_approve_strong') }}" class="actions">{{ csrf() }}<button class="btn">تأیید گروهی {{ n_strong|fa }} تطبیق قوی</button><span class="small muted">فقط آگهی‌هایی که یک پیشنهاد قوی دارند (پارت‌نامبر یکسان و بدون ناسازگاری).</span></form>{% endif %}
+</div></div>
+{% for e in queue %}
+<section class="panel review-item{% if e.best_rank == 0 %} strong{% endif %}">
+  <header><h2><a href="{{ url_for('market_listing', listing_id=e.id) }}">{{ e.title }}</a></h2>
+    <span class="small muted">{{ e.source_name }}{% if e.seller %} · {{ e.seller }}{% endif %} · {{ tier_tag(e.tier) }} · {{ obs_price(e.obs) }}{% if e.url %} · <a href="{{ e.url }}" rel="noopener noreferrer nofollow" target="_blank">صفحه آگهی</a>{% endif %}</span></header>
+  {% for m in e.proposals %}
+  <div class="proposal">
+    <div class="table-tools"><div><b><span class="pn">{{ m.product_key }}</span> {{ m.product_name }}</b> {{ verdict_tag(m.verdict) }}{% if m.relation == 'substitute' %} {{ tag('muted', 'جایگزین، نه هم‌طرح') }}{% endif %}</div>
+      <div class="inline-form">
+        <form method="post" action="{{ url_for('market_match_decide', match_id=m.id) }}">{{ csrf() }}<input type="hidden" name="decision" value="accept"><button class="btn small">تأیید این تطبیق</button></form>
+        <form method="post" action="{{ url_for('market_match_decide', match_id=m.id) }}">{{ csrf() }}<input type="hidden" name="decision" value="reject"><button class="btn small quiet">رد</button></form>
+      </div></div>
+    {{ reasons(m.reasons_l) }}
+    {{ compare_table(m.compare) }}
+  </div>
+  {% endfor %}
+  {% if e.rejected %}<div class="body"><details><summary>{{ e.rejected|length|fa }} کالای ردشده و دلیلش</summary>
+    <ul class="details-list">{% for m in e.rejected %}<li><span class="pn">{{ m.product_key }}</span>: {% for k, l in m.reasons_l if k == 'crit' %}{{ l }}{% if not loop.last %}، {% endif %}{% endfor %}{% if m.decided_by and m.decided_by != 'system' %} ({{ who(m.decided_by) }}){% endif %}</li>{% endfor %}</ul>
+  </details></div>{% endif %}
+</section>
+{% else %}
+<section class="panel"><div class="body muted">پیشنهادی منتظر تأیید نیست.</div></section>
+{% endfor %}
+{% endblock %}

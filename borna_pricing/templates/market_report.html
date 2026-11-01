@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_market.html" import subnav, toman, position with context %}
+{% block title %}گزارش بازار {{ rep.id }}{% endblock %}
+{% block content %}
+<div class="page-title"><h1>گزارش بازار شماره {{ rep.id|fa }}</h1><p>{{ data.period_start|jdt }} تا {{ data.period_end|jdt }} · <a href="{{ url_for('market_report_xlsx', report_id=rep.id) }}">دریافت Excel</a></p></div>
+{{ subnav('market_reports') }}
+<section class="panel" style="margin-top:0"><header><h2>نکته‌های این هفته</h2>{% if data.fx_end %}<span class="small muted">دلار: {{ data.fx_start|money if data.fx_start else '—' }} ← {{ data.fx_end|money }} تومان{% if data.fx_change %} ({{ data.fx_change|dec|pct }}){% endif %}</span>{% endif %}</header>
+  <div class="body"><ul class="insights">{% for i in data.insights %}<li>{{ i.text }}</li>{% else %}<li class="muted">نکته‌ای نیست.</li>{% endfor %}</ul></div>
+</section>
+<section class="panel"><header><h2>کالاها (تومان)</h2></header>
+  <div class="tbl-wrap"><table class="data"><thead><tr><th>کد</th><th>کالا</th><th class="num">قیمت رسمی برنا</th><th class="num">میانه رقبای هم‌طرح</th><th>سطح</th><th>فاصله برنا</th><th>تغییر رقبا در هفته</th><th class="num">آگهی</th><th class="num">ناموجود</th><th>ارزان‌ترین</th></tr></thead><tbody>
+  {% for r in data.rows %}<tr><td><a class="pn" href="{{ url_for('market_product', key=r.key) }}">{{ r.key }}</a></td><td>{{ r.name }}</td><td class="num">{{ toman(r.official) }}</td><td class="num">{{ toman(r.median) }}</td>
+    <td>{{ LEVEL_LABELS[r.level] if r.level else '—' }}</td><td>{{ position(r.position|dec|float if r.position else none) }}</td><td>{{ r.competitor_change|dec|pctx if r.competitor_change else '—' }}</td>
+    <td class="num">{{ r.n|fa }}{% if r.n_sub %}<span class="sub">+{{ r.n_sub|fa }} جایگزین</span>{% endif %}</td><td class="num">{{ r.oos|fa }}</td>
+    <td>{% if r.cheapest %}{{ r.cheapest.seller }} <span class="num">{{ r.cheapest.price|toman }}</span><span class="sub">{{ LEVEL_LABELS[r.cheapest.level] }}، {{ TIER_LABELS[r.cheapest.tier] }}</span>{% else %}—{% endif %}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

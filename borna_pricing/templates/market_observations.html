@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_ui.html" import csrf %}
+{% from "_market.html" import subnav, obs_tag with context %}
+{% block title %}بررسی قیمت‌ها{% endblock %}
+{% block content %}
+<div class="page-title"><h1>قیمت‌های منتظر بررسی</h1><p>قیمت‌هایی که فروش دستی ثبت کرده، یا قیمت‌هایی که سامانه مشکوک دانسته و قرنطینه کرده است.</p></div>
+{{ subnav('market_observations') }}
+<section class="panel" style="margin-top:0">
+  <div class="tbl-wrap"><table class="data">
+    <thead><tr><th>آگهی</th><th>منبع</th><th class="num">قیمت (تومان)</th><th class="num">قیمت قبلی</th><th>وضعیت و دلیل</th><th>ثبت</th><th>مدرک</th><th>تصمیم</th></tr></thead>
+    <tbody>
+    {% for o in rows %}
+      <tr>
+        <td><a href="{{ url_for('market_listing', listing_id=o.listing_id) }}">{{ o.title }}</a>{% if o.seller %}<span class="sub">{{ o.seller }}</span>{% endif %}</td>
+        <td>{{ o.source_name }}</td>
+        <td class="num strong">{% if o.kind == 'price' %}{{ o.price_rial|toman }}{% else %}بدون قیمت{% endif %}<span class="sub">متن: {{ o.raw_price or '—' }} ({{ UNIT_LABELS[o.unit] }})</span></td>
+        <td class="num">{{ o.prev_rial|toman if o.prev_rial else '—' }}</td>
+        <td>{{ obs_tag(o.status) }}<span class="sub">{{ o.status_note or '' }}</span></td>
+        <td class="small">{{ who(o.created_by) }}<span class="sub">{{ o.observed_at|jdt }}</span></td>
+        <td><a href="{{ url_for('market_evidence', snapshot_id=o.snapshot_id) }}">مدرک</a></td>
+        <td><form method="post" action="{{ url_for('market_observation_decide', obs_id=o.id) }}" class="inline-form">{{ csrf() }}
+          <input type="text" name="note" placeholder="توضیح (اختیاری)" aria-label="توضیح">
+          <button class="btn small" name="decision" value="accept">قیمت درست است</button>
+          <button class="btn small quiet" name="decision" value="reject">رد</button></form></td>
+      </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="8">قیمتی منتظر بررسی نیست.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

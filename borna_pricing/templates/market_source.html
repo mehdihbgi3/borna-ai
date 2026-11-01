@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% from "_market.html" import subnav with context %}
+{% block title %}{{ s.name if s else 'منبع تازه' }}{% endblock %}
+{% block content %}
+<div class="page-title"><h1>{{ s.name if s else 'منبع تازه' }}</h1>{% if s %}<p>{{ tag({'approved':'good','pending':'warn','blocked':'crit'}[s.policy_status], 'مجوز پایش: ' ~ POLICY_LABELS[s.policy_status]) }}</p>{% endif %}</div>
+{{ subnav('market_sources') }}
+{% set ro = not can('admin') %}
+<section class="panel" style="margin-top:0">
+  <header><h2>تنظیمات منبع</h2></header>
+  <div class="body">
+    <form method="post" class="form-grid">{{ csrf() }}
+      <label class="field">شناسه (انگلیسی، ثابت)<input type="text" name="key" value="{{ form.key or '' }}" {% if s or ro %}readonly{% endif %} required pattern="[a-z0-9][a-z0-9_\-]{1,39}"></label>
+      <label class="field">نام<input type="text" name="name" value="{{ form.name or '' }}" required {% if ro %}readonly{% endif %}></label>
+      <label class="field">نوع<select name="kind" {% if ro %}disabled{% endif %}>{% for k, v in SOURCE_KINDS.items() if k != 'manual' %}<option value="{{ k }}"{% if form.kind == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">دامنه<input type="text" name="domain" value="{{ form.domain or '' }}" placeholder="basalam.com" {% if ro %}readonly{% endif %}></label>
+      <label class="field wide">نشانی صفحه‌ها (هر خط یک نشانی؛ صفحه دسته یا جست‌وجوی سنسور اکسیژن)<textarea name="start_urls" {% if ro %}readonly{% endif %}>{{ form.start_urls or '' }}</textarea></label>
+      <label class="field">واحد قیمت روی سایت<select name="unit" {% if ro %}disabled{% endif %}>{% for k, v in UNIT_LABELS.items() %}<option value="{{ k }}"{% if form.unit == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">سطح قیمت<select name="price_level" {% if ro %}disabled{% endif %}>{% for k, v in LEVEL_LABELS.items() %}<option value="{{ k }}"{% if form.price_level == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">فاصله پایش (ساعت)<input type="text" name="interval_hours" value="{{ form.interval_hours }}" inputmode="numeric" {% if ro %}readonly{% endif %}></label>
+      <label class="field">مکث بین درخواست‌ها (ثانیه، حداقل {{ cfg.collector.min_delay_seconds|fa }})<input type="text" name="delay_seconds" value="{{ form.delay_seconds }}" inputmode="numeric" {% if ro %}readonly{% endif %}></label>
+      <label class="field">حداکثر صفحه در هر اجرا<input type="text" name="max_pages" value="{{ form.max_pages }}" inputmode="numeric" {% if ro %}readonly{% endif %}></label>
+      <label class="field">روش خواندن<select name="parser" {% if ro %}disabled{% endif %}><option value="auto"{% if form.parser != 'regex' %} selected{% endif %}>خودکار (JSON-LD و تگ‌های meta)</option><option value="regex"{% if form.parser == 'regex' %} selected{% endif %}>الگوی regex</option></select></label>
+      <label class="field">وضعیت<select name="active" {% if ro %}disabled{% endif %}><option value="1"{% if form.active|string in ('1', 'True') %} selected{% endif %}>فعال</option><option value="0"{% if form.active|string in ('0', 'False') %} selected{% endif %}>غیرفعال</option></select></label>
+      <label class="field wide">الگوی regex (فقط برای روش regex؛ گروه‌های title و price لازم، url، id، availability و seller اختیاری)<textarea name="item_regex" dir="ltr" {% if ro %}readonly{% endif %}>{{ form.item_regex or '' }}</textarea></label>
+      <label class="field wide">یادداشت<input type="text" name="note" value="{{ form.note or '' }}" {% if ro %}readonly{% endif %}></label>
+      {% if not ro %}<div class="wide inline-form"><button class="btn" name="action" value="save">ذخیره</button>{% if s %}<button class="btn quiet" name="action" value="test">آزمون روش خواندن روی آخرین صفحه ذخیره‌شده</button>{% endif %}</div>{% endif %}
+    </form>
+    {% if s and s.domain %}<p class="hint">واحد قیمت را از روی خود سایت تعیین کنید؛ برچسب IRR در کد صفحه‌های ایرانی قابل اعتماد نیست. اگر واحد اشتباه باشد، قیمت‌ها بیرون از بازه مجاز می‌افتند و قرنطینه می‌شوند.</p>{% endif %}
+  </div>
+</section>
+
+{% if test %}
+<section class="panel"><header><h2>نتیجه آزمون: {{ test.count|fa }} کالا</h2><span class="small muted">روی صفحه ذخیره‌شده {{ test.snapshot.fetched_at|jdt }}</span></header>
+  {% if test.warnings %}<div class="body small">{{ test.warnings|join('، ') }}</div>{% endif %}
+  <div class="tbl-wrap"><table class="data"><thead><tr><th>عنوان</th><th>متن قیمت</th><th class="num">قیمت (تومان)</th><th>موجودی</th><th>ECU / سوکت / طول</th></tr></thead><tbody>
+  {% for it in test["items"] %}<tr><td>{{ it.title }}</td><td>{{ it.price or '—' }}</td><td class="num">{{ it.rial|toman if it.rial else '—' }}</td><td>{{ AVAILABILITY_LABELS[it.availability] }}</td>
+    <td class="small">{{ attr_display('ecus', it.attrs.ecus) }} / {{ attr_display('socket_color', it.attrs.socket_color) }} / {{ attr_display('length_mm', it.attrs.length_mm) }}</td></tr>
+  {% else %}<tr class="empty-row"><td colspan="5">کالایی پیدا نشد؛ روش خواندن یا الگو را عوض کنید.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+
+{% if s %}
+<div class="cols">
+  <section class="panel">
+    <header><h2>مجوز پایش</h2></header>
+    <div class="body">
+      <p class="small">پیش از مجاز کردن، <a href="https://{{ s.domain }}/robots.txt" rel="noopener noreferrer nofollow" target="_blank">robots.txt</a> و شرایط استفاده سایت را بخوانید. اگر سایت خواندن خودکار را منع کرده، منبع را «ممنوع» کنید و قیمت‌هایش را دستی ثبت کنید.</p>
+      {% if s.policy_note %}<p class="small muted">آخرین تصمیم: {{ s.policy_note }} — {{ who(s.policy_by) }}، {{ s.policy_at|jdt if s.policy_at else '' }}</p>{% endif %}
+      {% if can('admin') %}
+      <form method="post" action="{{ url_for('market_source_policy', source_id=s.id) }}" class="inline-form">{{ csrf() }}
+        <label class="field">وضعیت<select name="status">{% for k, v in POLICY_LABELS.items() %}<option value="{{ k }}"{% if s.policy_status == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+        <label class="field">چه چیزی بررسی شد؟<input type="text" name="note" required minlength="5" placeholder="robots.txt اجازه می‌دهد؛ شرایط استفاده منعی ندارد"></label>
+        <button class="btn quiet">ثبت</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+  <section class="panel">
+    <header><h2>اجرا و سلامت</h2></header>
+    <div class="body">
+      <dl class="kv">
+        <dt>آخرین اجرا</dt><dd>{{ s.last_run_at|jdt if s.last_run_at else '—' }}</dd>
+        <dt>آخرین موفقیت</dt><dd>{{ s.last_success_at|jdt if s.last_success_at else '—' }}</dd>
+        <dt>خطاهای پشت سر هم</dt><dd>{{ s.failure_count|fa }}</dd>
+        {% if s.last_error %}<dt>آخرین خطا</dt><dd class="small">{{ s.last_error }}</dd>{% endif %}
+      </dl>
+      {% if s.policy_status == 'approved' %}
+      <form method="post" action="{{ url_for('market_source_run', source_id=s.id) }}" style="margin-top:12px">{{ csrf() }}<button class="btn quiet">اجرای پایش همین حالا</button></form>
+      {% endif %}
+    </div>
+  </section>
+</div>
+<section class="panel"><header><h2>صفحه‌های ذخیره‌شده (مدرک)</h2></header>
+  <div class="tbl-wrap"><table class="data"><thead><tr><th>زمان</th><th>نشانی</th><th class="num">کالا</th><th>توضیح</th><th>SHA-256</th><th>مدرک</th></tr></thead><tbody>
+  {% for sn in snaps %}<tr><td class="small">{{ sn.fetched_at|jdt }}</td><td class="small"><span class="pn">{{ (sn.url or '—')[:80] }}</span></td><td class="num">{{ sn.n_items|fa if sn.n_items is not none else '—' }}</td><td class="small">{{ sn.message or '' }}</td><td><span class="pn small">{{ sn.sha256[:16] }}…</span></td><td><a href="{{ url_for('market_evidence', snapshot_id=sn.id) }}">دریافت</a></td></tr>
+  {% else %}<tr class="empty-row"><td colspan="6">هنوز صفحه‌ای ذخیره نشده است.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+{% endblock %}

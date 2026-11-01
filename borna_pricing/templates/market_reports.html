@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_ui.html" import csrf %}
+{% from "_market.html" import subnav with context %}
+{% block title %}گزارش‌های بازار{% endblock %}
+{% block content %}
+<div class="page-title"><h1>گزارش هفتگی بازار</h1>{% if can('approver') %}<form method="post" action="{{ url_for('market_report_build') }}">{{ csrf() }}<button class="btn quiet">ساخت گزارش همین حالا</button></form>{% endif %}</div>
+{{ subnav('market_reports') }}
+<section class="panel" style="margin-top:0">
+  <div class="tbl-wrap"><table class="data"><thead><tr><th class="num">شماره</th><th>بازه</th><th>ساخته‌شده</th><th>توسط</th><th>Excel</th></tr></thead><tbody>
+  {% for r in reports %}<tr><td class="num"><a href="{{ url_for('market_report', report_id=r.id) }}">{{ r.id|fa }}</a></td><td>{{ r.period_start|jdate }} تا {{ r.period_end|jdate }}</td><td class="small">{{ r.created_at|jdt }}</td><td class="small">{{ who(r.created_by) }}</td><td><a href="{{ url_for('market_report_xlsx', report_id=r.id) }}">دریافت</a></td></tr>
+  {% else %}<tr class="empty-row"><td colspan="5">هنوز گزارشی ساخته نشده است. تحلیلگر بازار هر هفته خودکار گزارش می‌سازد، به شرطی که دست‌کم یک آگهی تطبیق‌شده باشد.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

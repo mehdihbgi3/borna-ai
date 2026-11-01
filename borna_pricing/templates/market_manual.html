@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_ui.html" import csrf %}
+{% from "_market.html" import subnav with context %}
+{% block title %}ثبت قیمت رقیب{% endblock %}
+{% block content %}
+<div class="page-title"><h1>ثبت قیمت رقیب</h1><p>قیمتی که تلفنی، حضوری، در فاکتور، یا در کانال پیام‌رسان یک رقیب دیده‌اید.</p></div>
+{{ subnav('market_manual') }}
+<section class="panel" style="margin-top:0">
+  <div class="body">
+    {% if user.role == 'viewer' %}<p class="small muted">قیمتی که ثبت می‌کنید پس از تأیید مالی یا مدیر در مقایسه‌ها حساب می‌شود.</p>{% endif %}
+    <form method="post" enctype="multipart/form-data" class="form-grid">{{ csrf() }}
+      <label class="field">رقیب یا فروشنده *<input type="text" name="seller" value="{{ form.seller or '' }}" required maxlength="120"></label>
+      <label class="field">کالای برنای معادل<select name="product_key"><option value="">نمی‌دانم یا معادل ندارد</option>{% for p in products %}<option value="{{ p.key }}"{% if form.product_key == p.key %} selected{% endif %}>{{ p.key }} — {{ p.name }}</option>{% endfor %}</select></label>
+      <label class="field wide">عنوان یا شرح کالای رقیب<input type="text" name="title" value="{{ form.title or '' }}" maxlength="300" placeholder="مثلاً سنسور اکسیژن زیمنس سوکت طوسی NTK اصل"></label>
+      <label class="field">قیمت<input type="text" name="price" value="{{ form.price or '' }}" inputmode="numeric" placeholder="مثلاً 2500000"></label>
+      <label class="field">واحد<select name="unit">{% for k, v in UNIT_LABELS.items() %}<option value="{{ k }}"{% if (form.unit or 'toman') == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">سطح قیمت<select name="price_level">{% for k, v in LEVEL_LABELS.items() %}<option value="{{ k }}"{% if (form.price_level or 'wholesale') == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">حداقل تعداد<input type="text" name="min_qty" value="{{ form.min_qty or '' }}" inputmode="numeric"></label>
+      <label class="field">اصالت<select name="tier">{% for k, v in TIER_LABELS.items() %}<option value="{{ k }}"{% if (form.tier or 'unknown') == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">موجودی<select name="availability">{% for k, v in AVAILABILITY_LABELS.items() %}<option value="{{ k }}"{% if (form.availability or 'unknown') == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field">از کجا<select name="channel">{% for k, v in CHANNELS.items() %}<option value="{{ k }}"{% if (form.channel or 'phone') == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="field wide">شرح منبع (اگر فایل ندارید لازم است)<textarea name="note" maxlength="2000" placeholder="مثلاً تماس با فروش بنکدار الف، ساعت ۱۱">{{ form.note or '' }}</textarea></label>
+      <label class="field wide">فایل مدرک: عکس، PDF یا متن (حداکثر {{ max_mb|fa }} مگابایت)<input type="file" name="evidence" accept=".png,.jpg,.jpeg,.webp,.pdf,.txt"></label>
+      <div class="wide"><button class="btn">ثبت قیمت</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

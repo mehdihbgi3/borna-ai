@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% from "_market.html" import subnav with context %}
+{% block title %}ایجنت‌ها{% endblock %}
+{% block content %}
+<div class="page-title"><h1>مرکز ایجنت‌ها</h1><p>هر ایجنت یک کار مشخص و ابزارهای محدود دارد؛ هیچ‌کدام قیمت برنا را عوض نمی‌کند یا بیرون از سامانه پیام نمی‌فرستد.</p></div>
+{{ subnav('market_agents') }}
+{% if not enabled %}<div class="alert warn"><div><h2>ایجنت‌ها در تنظیمات خاموش‌اند</h2><p>در settings.ini بخش [agents] مقدار enabled = true بگذارید و سامانه را دوباره روشن کنید. اجرای دستی همچنان ممکن است.</p></div></div>
+{% elif paused %}<div class="alert warn"><div><h2>اجرای خودکار متوقف است</h2><p>ایجنت‌ها فقط با دکمه «اجرا» کار می‌کنند.</p>
+  {% if can('admin') %}<form method="post" action="{{ url_for('market_agents_pause') }}" class="actions">{{ csrf() }}<input type="hidden" name="paused" value="0"><button class="btn">روشن کردن اجرای خودکار</button></form>{% endif %}</div></div>
+{% elif can('admin') %}<form method="post" action="{{ url_for('market_agents_pause') }}" class="inline-form" style="margin-bottom:12px">{{ csrf() }}<input type="hidden" name="paused" value="1"><button class="btn danger">توقف اجرای خودکار همه ایجنت‌ها</button></form>{% endif %}
+
+<div class="cols">
+{% for a in agents %}
+  <section class="panel" style="margin-top:0">
+    <header><h2>{{ a.label }}</h2>{{ tag('info', a.level ~ ' · ' ~ AGENT_LEVELS[a.level]) }}</header>
+    <div class="body">
+      <p class="small">{{ a.description }}</p>
+      <p class="small muted">ابزارها: {{ a.tools|join('، ') }}</p>
+      <dl class="kv small">
+        <dt>آخرین اجرا</dt><dd>{% if a.last %}{{ a.last.started_at|jdt }} — {{ tag({'ok':'good','partial':'warn','failed':'crit','skipped':'muted','running':'info'}[a.last.status], {'ok':'موفق','partial':'نیمه‌موفق','failed':'ناموفق','skipped':'کاری نبود','running':'در حال اجرا'}[a.last.status]) }}{% if a.last.message %}<span class="sub">{{ a.last.message }}</span>{% endif %}{% else %}هنوز اجرا نشده{% endif %}</dd>
+        <dt>بعدی</dt><dd>{{ a.next }}</dd>
+      </dl>
+      <form method="post" action="{{ url_for('market_agent_run', key=a.key) }}" style="margin-top:10px">{{ csrf() }}<button class="btn quiet"{% if a.running %} disabled{% endif %}>{{ 'در حال اجرا…' if a.running else 'اجرا همین حالا' }}</button></form>
+    </div>
+  </section>
+{% endfor %}
+</div>
+
+<section class="panel"><header><h2>گزارش اجراها</h2></header>
+  <div class="tbl-wrap"><table class="data"><thead><tr><th>ایجنت</th><th>شروع</th><th>پایان</th><th>شروع‌کننده</th><th>وضعیت</th><th>خلاصه</th></tr></thead><tbody>
+  {% set names = {} %}{% for a in agents %}{% set _ = names.update({a.key: a.label}) %}{% endfor %}
+  {% for r in runs %}<tr><td>{{ names.get(r.agent, r.agent) }}</td><td class="small">{{ r.started_at|jdt }}</td><td class="small">{{ r.finished_at|jdt if r.finished_at else '—' }}</td>
+    <td class="small">{{ 'زمان‌بند' if r.trigger == 'schedule' else who(r.created_by) }}</td>
+    <td>{{ tag({'ok':'good','partial':'warn','failed':'crit','skipped':'muted','running':'info'}[r.status], {'ok':'موفق','partial':'نیمه‌موفق','failed':'ناموفق','skipped':'کاری نبود','running':'در حال اجرا'}[r.status]) }}</td>
+    <td class="small">{{ r.message or '' }}{% if r.stats_d %}<span class="sub">{% for k, v in r.stats_d.items() if v is number and v %}{{ {'sources':'منبع','pages':'صفحه','observations':'قیمت تازه','new_listings':'آگهی تازه','quarantined':'قرنطینه','listings':'آگهی بررسی‌شده','proposed':'پیشنهاد','matched':'تطبیق','unmatched':'بدون تطبیق','ambiguous':'مبهم','report_id':'شماره گزارش'}.get(k, k) }}: {{ v|fa }}{% if not loop.last %}، {% endif %}{% endfor %}</span>{% if r.stats_d.errors %}<span class="sub">{{ r.stats_d.errors|join('؛ ')|truncate(240) }}</span>{% endif %}{% endif %}</td></tr>
+  {% else %}<tr class="empty-row"><td colspan="6">هنوز اجرایی ثبت نشده است.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

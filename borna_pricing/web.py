@@ -34,7 +34,14 @@ AUDIT_LABELS = {
     "login": "ورود", "login_failed": "ورود ناموفق", "rate_fetch": "دریافت نرخ", "rate_approve": "تأیید نرخ",
     "rate_reject": "رد نرخ", "rate_manual": "نرخ دستی", "run": "محاسبه قیمت", "publish": "انتشار لیست",
     "renew": "تمدید اعتبار", "base_publication": "لیست پایه", "products_import": "ورود کالاها",
-    "user_create": "ساخت کاربر", "user_update": "تغییر کاربر",
+    "user_create": "ساخت کاربر", "user_update": "تغییر کاربر", "schema_migrate": "به‌روزرسانی پایگاه‌داده",
+    "source_create": "ساخت منبع بازار", "source_update": "تغییر منبع بازار", "source_policy": "مجوز پایش منبع",
+    "observation_manual": "ثبت دستی قیمت رقیب", "observation_approve": "تأیید قیمت رقیب",
+    "observation_reject": "رد قیمت رقیب", "match_approve": "تأیید تطبیق", "match_reject": "رد تطبیق",
+    "match_manual": "تطبیق دستی", "match_unlink": "لغو تطبیق", "match_bulk_approve": "تأیید گروهی تطبیق",
+    "listing_tier": "تعیین اصالت آگهی", "listing_own": "آگهی خود برنا", "listing_changed": "تغییر آگهی تطبیق‌شده",
+    "spec_set": "ثبت مشخصه فنی", "spec_remove": "حذف مشخصه فنی", "agents_pause": "توقف ایجنت‌ها",
+    "agents_resume": "روشن شدن ایجنت‌ها",
 }
 
 
@@ -45,7 +52,10 @@ AUDIT_KEYS = {
     "n_publish": "کالای بالای آستانه انتشار", "n_approval": "کالای بالای آستانه تأیید", "username": "کاربر",
     "role": "نقش", "file": "فایل", "total": "تعداد کالا", "added": "جدید", "removed": "حذف", "changed": "تغییر",
     "reactivated": "دوباره فعال", "date": "تاریخ", "products": "تعداد کالا", "active": "فعال", "password": "رمز",
-    "full_name": "نام",
+    "full_name": "نام", "versions": "نسخه", "source": "منبع", "domain": "دامنه", "policy_reset": "مجوز از نو",
+    "observation": "شماره مشاهده", "seller": "فروشنده", "product": "کالا", "listing": "شماره آگهی",
+    "count": "تعداد", "tier": "اصالت", "own": "مال برنا", "attr": "ویژگی", "value": "مقدار", "old": "قبلی",
+    "new": "تازه",
 }
 
 
@@ -160,8 +170,11 @@ def table_vm(st: dict, approver: bool) -> dict:
     return {"rows": rows, "compare": show_run, "removed": (run or {}).get("removed", []) if show_run else []}
 
 
-def create_app(cfg, svc: Service | None = None) -> Flask:
+def create_app(cfg, svc: Service | None = None, market=None) -> Flask:
     svc = svc or Service(cfg)
+    if market is None:
+        from .market.service import MarketService
+        market = MarketService(svc)
     app = Flask(__name__)
     app.config.update(
         SECRET_KEY=ensure_secret_key(cfg.paths.secret_key_file),
@@ -173,6 +186,7 @@ def create_app(cfg, svc: Service | None = None) -> Flask:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
         app.config["SESSION_COOKIE_SECURE"] = True
     app.extensions["borna_service"] = svc
+    app.extensions["borna_market"] = market
     throttle = LoginThrottle()
     uploads = Path(cfg.paths.database).parent / "uploads"
 
@@ -186,6 +200,8 @@ def create_app(cfg, svc: Service | None = None) -> Flask:
                        ROLE_LABELS=ROLE_LABELS, ROLES=ROLES, AUDIT_LABELS=AUDIT_LABELS, FIELD_LABELS=FIELD_LABELS, ROLE_SHORT=ROLE_SHORT, AUDIT_KEYS=AUDIT_KEYS,
                        audit_value=audit_value, source_label=fx.label(cfg),
                        version=__version__)
+    from .market import web as market_web
+    env.globals.update(market_web.globals_for_templates())
 
     def csrf_token() -> str:
         if "_csrf" not in session:
@@ -508,6 +524,9 @@ def create_app(cfg, svc: Service | None = None) -> Flask:
     def admin_settings():
         return render_template("admin_settings.html", hours=svc.hours.describe(),
                                holidays=sorted(cfg.hours.holidays))
+
+    from types import SimpleNamespace
+    market_web.register(app, svc, market, SimpleNamespace(need=need, uname=uname, can=can))
 
     @app.get("/health")
     def health():

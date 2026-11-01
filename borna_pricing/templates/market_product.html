@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag, csrf %}
+{% from "_market.html" import subnav, toman, position, tier_tag, obs_price, verdict_tag with context %}
+{% block title %}بازار: {{ p.key }}{% endblock %}
+{% block content %}
+<div class="page-title"><h1>{{ p.name }}</h1><p><span class="pn">{{ p.key }}</span> · <a href="{{ url_for('product', key=p.key) }}">تاریخچه قیمت رسمی</a></p></div>
+{{ subnav('market_overview') }}
+<div class="cols">
+  <section class="panel" style="margin-top:0">
+    <header><h2>مشخصات فنی برای تطبیق</h2></header>
+    <div class="body">
+      <dl class="kv">{% for label, value, origin in d.profile_rows %}<dt>{{ label }}</dt><dd>{{ value }}{% if origin %} <span class="small muted">({{ origin }})</span>{% endif %}</dd>{% endfor %}</dl>
+      {% if can('admin') %}
+      <h3 class="small" style="margin:16px 0 6px">مشخصه دستی (پارت‌نامبر معادل، تعداد سیم، خودرو، …)</h3>
+      {% if d.specs %}<ul class="details-list">{% for s in d.specs %}<li>{{ SPEC_ATTRS[s.attr] }}: <b>{{ attr_display({'xref':'part_nos','vehicle':'vehicles'}.get(s.attr, s.attr), [s.value] if s.attr in ('xref','vehicle') else s.value) }}</b>
+        <form method="post" action="{{ url_for('market_product_specs', key=p.key) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="attr" value="{{ s.attr }}"><input type="hidden" name="value" value="{{ s.value }}"><button class="linkbtn small" style="color:var(--crit-ink)">حذف</button></form></li>{% endfor %}</ul>{% endif %}
+      <form method="post" action="{{ url_for('market_product_specs', key=p.key) }}" class="inline-form" style="margin-top:8px">{{ csrf() }}
+        <label class="field">ویژگی<select name="attr">{% for k, v in SPEC_ATTRS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+        <label class="field">مقدار<input type="text" name="value" required></label>
+        <label class="field">منبع یا توضیح<input type="text" name="note"></label>
+        <button class="btn quiet">ثبت</button>
+      </form>
+      <p class="hint">بعد از هر تغییر، آگهی‌های تطبیق‌نشده دوباره بررسی می‌شوند. تطبیق‌های تأییدشده دست نمی‌خورند.</p>
+      {% endif %}
+    </div>
+  </section>
+  <section class="panel" style="margin-top:0">
+    <header><h2>خلاصه قیمت (تومان)</h2></header>
+    <div class="body">
+      <dl class="kv">
+        <dt>قیمت رسمی برنا</dt><dd class="strong">{{ toman(d.official) }}{% if d.official and d.rate %} <span class="small muted">≈ {{ (d.official / (d.rate.value_toman * 10))|round(2)|string|fa }} دلار</span>{% endif %}</dd>
+        {% for lv in ('wholesale', 'retail', 'unknown') %}{% set s = d.stats[lv] %}{% if s.n %}
+        <dt>رقبای هم‌طرح، {{ LEVEL_LABELS[lv] }}</dt><dd>میانه {{ toman(s.median) }} · کمترین {{ toman(s.min) }} · بیشترین {{ toman(s.max) }} <span class="small muted">({{ s.n_priced|fa }} قیمت{% if s.oos %}، {{ s.oos|fa }} ناموجود{% endif %})</span></dd>
+        {% endif %}{% endfor %}
+      </dl>
+      {% if d.proposals %}<p class="small" style="margin-top:12px">{{ tag('warn', d.proposals|length|fa ~ ' پیشنهاد تطبیق منتظر تأیید') }}{% if can('approver') %} <a href="{{ url_for('market_review') }}">بررسی</a>{% endif %}</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+{% if chart %}
+<section class="panel"><header><h2>میانه قیمت رقبای هم‌طرح در زمان (ریال)</h2></header>
+  <div class="body"><div class="chart">{{ chart.svg }}<script type="application/json">{{ chart.data }}</script></div></div>
+</section>
+{% endif %}
+
+<section class="panel" aria-labelledby="ls-title">
+  <header><h2 id="ls-title">آگهی‌های تطبیق‌شده</h2></header>
+  <div class="tbl-wrap">
+  <table class="data">
+    <thead><tr><th>منبع</th><th>فروشنده</th><th>عنوان آگهی</th><th>اصالت</th><th>نسبت</th><th>سطح</th><th class="num">قیمت (تومان)</th><th>زمان قیمت</th><th>مدرک</th></tr></thead>
+    <tbody>
+    {% for r in d.rows|sort(attribute='obs.observed_at', reverse=true) %}
+      <tr{% if not r.fresh %} class="same"{% endif %}>
+        <td>{{ r.source_name }}</td>
+        <td>{{ r.seller or '—' }}{% if r.is_own %} {{ tag('info', 'برنا') }}{% endif %}</td>
+        <td><a href="{{ url_for('market_listing', listing_id=r.listing_id) }}">{{ r.title }}</a></td>
+        <td>{{ tier_tag(r.tier) }}</td>
+        <td>{{ RELATION_LABELS[r.relation] }}</td>
+        <td>{{ LEVEL_LABELS[r.obs.price_level] }}{% if r.obs.min_qty %}<span class="sub">حداقل {{ r.obs.min_qty|fa }}</span>{% endif %}</td>
+        <td class="num">{{ obs_price(r.obs) }}</td>
+        <td class="small">{{ r.obs.observed_at|jdt }}{% if not r.fresh %}<span class="sub">قدیمی؛ در میانه حساب نمی‌شود</span>{% endif %}</td>
+        <td><a href="{{ url_for('market_evidence', snapshot_id=r.obs.snapshot_id) }}">مدرک</a></td>
+      </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="9">هنوز آگهی تأییدشده‌ای برای این کالا نیست.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

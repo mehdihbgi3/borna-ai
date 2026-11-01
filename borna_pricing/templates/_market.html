@@ -1,0 +1,60 @@
+{% macro subnav(active) -%}
+{% set items = [
+  ('market_overview', 'نمای کلی', 'viewer'),
+  ('market_listings', 'آگهی‌ها', 'viewer'),
+  ('market_manual', 'ثبت قیمت رقیب', 'viewer'),
+  ('market_review', 'تأیید تطبیق', 'approver'),
+  ('market_observations', 'بررسی قیمت‌ها', 'approver'),
+  ('market_sources', 'منبع‌ها', 'approver'),
+  ('market_agents', 'ایجنت‌ها', 'approver'),
+  ('market_reports', 'گزارش هفتگی', 'viewer'),
+] %}
+<nav class="subnav" aria-label="بخش‌های بازار">
+  {% for ep, label, r in items if can(r) %}<a href="{{ url_for(ep) }}"{% if active == ep %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+{%- endmacro %}
+
+{% macro toman(rial) -%}{% if rial %}<span class="num">{{ rial|toman }}</span>{% else %}<span class="muted">—</span>{% endif %}{%- endmacro %}
+
+{% macro position(x) -%}
+{%- if x is none -%}<span class="muted">—</span>
+{%- elif x < -0.0005 -%}<span class="pos-cheaper">{{ (-x)|pctp }} ارزان‌تر</span>
+{%- elif x > 0.0005 -%}<span class="pos-pricier">{{ x|pctp }} گران‌تر</span>
+{%- else -%}هم‌قیمت{%- endif -%}
+{%- endmacro %}
+
+{% macro tier_tag(t) -%}
+{%- set kind = {'genuine': 'info', 'oem': 'info', 'aftermarket': 'muted', 'unknown': 'muted'}.get(t, 'muted') -%}
+<span class="tag {{ kind }}">{{ TIER_LABELS.get(t, t) }}</span>
+{%- endmacro %}
+
+{% macro verdict_tag(v) -%}
+{%- set kind = {'strong': 'good', 'candidate': 'info', 'review': 'warn', 'reject': 'crit', 'manual': 'info'}.get(v, 'muted') -%}
+<span class="tag {{ kind }}">{{ VERDICT_LABELS.get(v, v) }}</span>
+{%- endmacro %}
+
+{% macro obs_tag(s) -%}
+{%- set kind = {'ok': 'good', 'pending': 'warn', 'quarantined': 'crit', 'rejected': 'muted'}.get(s, 'muted') -%}
+<span class="tag {{ kind }}">{{ OBS_STATUS.get(s, s) }}</span>
+{%- endmacro %}
+
+{% macro reasons(list) -%}
+<span class="reasons">{% for kind, label in list %}<span class="tag {{ kind }}">{{ label }}</span>{% endfor %}</span>
+{%- endmacro %}
+
+{% macro obs_price(o) -%}
+{%- if not o -%}<span class="muted">—</span>
+{%- elif o.kind == 'price' -%}<span class="num">{{ o.price_rial|toman }}</span>{% if o.list_price_rial %} <s class="small muted num">{{ o.list_price_rial|toman }}</s>{% endif %}
+{%- else -%}<span class="muted">بدون قیمت</span>{%- endif -%}
+{%- if o and o.availability == 'out_of_stock' %} <span class="tag crit">ناموجود</span>{% endif -%}
+{%- endmacro %}
+
+{% macro compare_table(rows) -%}
+<table class="data compare">
+  <thead><tr><th>ویژگی</th><th>آگهی رقیب</th><th>کالای برنا</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.label }}</td>
+    <td class="{{ 'same-yes' if r.same == true else 'same-no' if r.same == false else '' }}">{{ r.listing }}</td>
+    <td class="{{ 'same-yes' if r.same == true else 'same-no' if r.same == false else '' }}">{{ r.product }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{%- endmacro %}

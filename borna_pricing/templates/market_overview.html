@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag %}
+{% from "_market.html" import subnav, toman, position, tier_tag with context %}
+{% block title %}بازار و رقبا{% endblock %}
+{% block content %}
+<div class="page-title"><h1>بازار و رقبا</h1><p>قیمت رسمی برنا در برابر قیمت تأییدشده رقبا؛ فقط قیمت‌های {{ cfg.market.stale_days|fa }} روز اخیر.</p></div>
+{{ subnav('market_overview') }}
+{% set k = ov.kpi %}
+{% if k.paused %}<div class="alert warn"><div><h2>اجرای خودکار ایجنت‌ها متوقف است</h2><p>پایش و گزارش خودکار انجام نمی‌شود تا مدیر سامانه آن را در صفحه «ایجنت‌ها» روشن کند.</p></div></div>{% endif %}
+{% if not k.sources_ok and not k.listings %}
+<div class="alert info"><div><h2>هنوز داده‌ای از بازار نیست</h2>
+<p>دو راه برای شروع: مدیر سامانه در «منبع‌ها» سایت‌های رقیب را ثبت و پس از بررسی robots.txt و شرایط استفاده، مجاز کند؛ یا فروش قیمت‌هایی را که تلفنی، در کانال‌ها یا در فاکتور رقبا می‌بیند در «ثبت قیمت رقیب» وارد کند.</p></div></div>
+{% endif %}
+<dl class="kpis">
+  <div class="kpi"><dt>منبع مجاز / فعال</dt><dd>{{ k.sources_ok|fa }} / {{ k.sources|fa }}</dd></div>
+  <div class="kpi"><dt>آگهی‌ها</dt><dd><a href="{{ url_for('market_listings') }}">{{ k.listings|fa }}</a></dd></div>
+  <div class="kpi"><dt>تطبیق‌شده</dt><dd>{{ k.matched|fa }}</dd></div>
+  <div class="kpi"><dt>منتظر تأیید تطبیق</dt><dd>{% if can('approver') %}<a href="{{ url_for('market_review') }}">{{ k.to_review|fa }}</a>{% else %}{{ k.to_review|fa }}{% endif %}</dd></div>
+  <div class="kpi"><dt>قیمت منتظر بررسی</dt><dd>{% if can('approver') %}<a href="{{ url_for('market_observations') }}">{{ k.obs_review|fa }}</a>{% else %}{{ k.obs_review|fa }}{% endif %}</dd></div>
+  <div class="kpi"><dt>آگهی بدون تطبیق</dt><dd><a href="{{ url_for('market_listings', state='unmatched') }}">{{ k.unmatched|fa }}</a></dd></div>
+  <div class="kpi"><dt>آخرین پایش خودکار</dt><dd class="small">{{ k.last_watch|jdt if k.last_watch else 'هنوز انجام نشده' }}</dd></div>
+</dl>
+
+<section class="panel" aria-labelledby="pos-title">
+  <header><h2 id="pos-title">جایگاه قیمت هر کالا (تومان)</h2>
+    <div class="table-tools"><input type="search" placeholder="جست‌وجو" data-filter-for="mkt" aria-label="جست‌وجو در کالاها">
+      <span class="small muted"><span data-count-for="mkt">{{ ov.table|length|fa }}</span> کالا</span></div></header>
+  <div class="body small muted">قیمت رسمی برنا عمده است (حداقل سفارش ۱۰۰ عدد). «فاصله برنا» با میانه قیمت عمده رقبای هم‌طرح سنجیده می‌شود و اگر قیمت عمده نباشد با خرده‌فروشی؛ قیمت خرده‌فروشی سود فروشنده را هم دارد. جایگزین‌ها (طرح دیگر برای همان خودرو) جدا حساب می‌شوند.</div>
+  <div class="tbl-wrap">
+  <table class="data" id="mkt">
+    <thead><tr><th>کد</th><th>کالا</th><th class="num">قیمت رسمی برنا</th><th class="num">میانه عمده رقبا</th><th class="num">میانه خرده رقبا</th><th>فاصله برنا</th><th>ارزان‌ترین رقیب</th><th class="num">آگهی</th><th class="num">ناموجود</th><th class="num">منتظر تأیید</th><th class="num">خرده خود برنا</th></tr></thead>
+    <tbody>
+    {% for r in ov.table %}
+      <tr>
+        <td><a class="pn" href="{{ url_for('market_product', key=r.product.key) }}">{{ r.product.key }}</a></td>
+        <td>{{ r.product.name }}</td>
+        <td class="num strong">{{ toman(r.official) }}</td>
+        <td class="num">{{ toman(r.stats.wholesale.median) }}{% if r.stats.wholesale.n_priced %}<span class="sub">{{ r.stats.wholesale.n_priced|fa }} قیمت</span>{% endif %}</td>
+        <td class="num">{{ toman(r.stats.retail.median) }}{% if r.stats.retail.n_priced %}<span class="sub">{{ r.stats.retail.n_priced|fa }} قیمت</span>{% endif %}</td>
+        <td>{{ position(r.position) }}{% if r.ref_level %}<span class="sub">در برابر {{ LEVEL_LABELS[r.ref_level] }}</span>{% endif %}</td>
+        <td>{% if r.cheapest %}{{ r.cheapest.seller or r.cheapest.source_name }} <span class="num">{{ r.cheapest.obs.price_rial|toman }}</span><span class="sub">{{ LEVEL_LABELS[r.cheapest.obs.price_level] }}، {{ TIER_LABELS[r.cheapest.tier] }}{% if r.cheapest.relation == 'substitute' %}، جایگزین{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="num">{{ r.n_listings|fa }}</td>
+        <td class="num">{% if r.oos %}{{ tag('warn', r.oos|fa) }}{% else %}<span class="muted">۰</span>{% endif %}</td>
+        <td class="num">{% if r.pending %}{{ r.pending|fa }}{% else %}<span class="muted">۰</span>{% endif %}</td>
+        <td class="num">{{ toman(r.own_price) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

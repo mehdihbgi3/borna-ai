@@ -14,6 +14,7 @@
   ('pricelist_page', 'لیست قیمت', 'viewer'),
   ('rates', 'تاریخچه نرخ', 'viewer'),
   ('publications', 'انتشارها', 'viewer'),
+  ('market_overview', 'بازار و رقبا', 'viewer'),
   ('admin_products', 'کالاها', 'admin'),
   ('admin_users', 'کاربران', 'admin'),
   ('admin_audit', 'رویدادها', 'admin'),
@@ -25,7 +26,7 @@
     {% if user %}
     <nav class="nav" aria-label="بخش‌ها">
       {% for ep, label, role in nav if can(role) %}
-      <a href="{{ url_for(ep) }}"{% if request.endpoint == ep or (ep == 'admin_products' and request.endpoint and request.endpoint.startswith('admin_products')) %} aria-current="page"{% endif %}>{{ label }}</a>
+      <a href="{{ url_for(ep) }}"{% if request.endpoint == ep or (ep == 'admin_products' and request.endpoint and request.endpoint.startswith('admin_products')) or (ep == 'market_overview' and request.endpoint and request.endpoint.startswith('market_')) %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
     </nav>
     <div class="who">

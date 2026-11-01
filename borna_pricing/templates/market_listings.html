@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_ui.html" import tag %}
+{% from "_market.html" import subnav, tier_tag, obs_price with context %}
+{% block title %}آگهی‌ها{% endblock %}
+{% block content %}
+<div class="page-title"><h1>آگهی‌های رقبا</h1><p>هر کالایی که از منبع‌ها خوانده یا دستی ثبت شده است.</p></div>
+{{ subnav('market_listings') }}
+<section class="panel" style="margin-top:0">
+  <header>
+    <div class="seg">
+      <a href="{{ url_for('market_listings', source=source_id) }}"{% if not state %} aria-current="true"{% endif %}>همه</a>
+      {% for k, v in STATE_LABELS.items() %}<a href="{{ url_for('market_listings', state=k, source=source_id) }}"{% if state == k %} aria-current="true"{% endif %}>{{ v }}</a>{% endfor %}
+    </div>
+    <div class="table-tools"><input type="search" placeholder="جست‌وجو" data-filter-for="lst" aria-label="جست‌وجو در آگهی‌ها">
+      <span class="small muted"><span data-count-for="lst">{{ rows|length|fa }}</span> آگهی</span></div>
+  </header>
+  <div class="tbl-wrap">
+  <table class="data" id="lst">
+    <thead><tr><th>منبع</th><th>عنوان</th><th>فروشنده</th><th>اصالت</th><th>وضعیت تطبیق</th><th>کالای برنا</th><th class="num">آخرین قیمت (تومان)</th><th>آخرین بار دیده شد</th></tr></thead>
+    <tbody>
+    {% for e in rows %}
+      <tr>
+        <td>{{ e.source_name }}</td>
+        <td><a href="{{ url_for('market_listing', listing_id=e.id) }}">{{ e.title }}</a>{% if e.attrs_d.family != 'o2' %}<span class="sub">سنسور اکسیژن نیست</span>{% endif %}</td>
+        <td>{{ e.seller or '—' }}{% if e.is_own %} {{ tag('info', 'برنا') }}{% endif %}</td>
+        <td>{{ tier_tag(e.tier) }}</td>
+        <td>{{ STATE_LABELS[e.match_state] }}</td>
+        <td>{% if e.product_key %}<a class="pn" href="{{ url_for('market_product', key=e.product_key) }}">{{ e.product_key }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="num">{{ obs_price(e.obs) }}</td>
+        <td class="small">{{ e.last_seen_at|jdt }}</td>
+      </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="8">آگهی‌ای نیست.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
