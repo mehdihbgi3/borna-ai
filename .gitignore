@@ -7,3 +7,4 @@ data/*.log*
 data/backups/
 data/uploads/
 *.zip
+data/evidence/

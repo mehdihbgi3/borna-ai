@@ -86,6 +86,28 @@ DEFAULTS: dict[str, dict[str, str]] = {
         "products_xlsx": "data/Borna_Step2-3_Products_Pricing.xlsx",
         "log_file": "data/borna_pricing.log",
         "secret_key_file": "data/secret.key",
+        "evidence_dir": "data/evidence",
+    },
+    "market": {
+        "own_sellers": "برنا سنسور",
+        "min_price_toman": "300000",
+        "max_price_toman": "50000000",
+        "jump_quarantine": "0.5",
+        "stale_days": "14",
+        "length_tolerance_mm": "30",
+    },
+    "collector": {
+        "user_agent": "BornaMarketBot/1.2",
+        "timeout_seconds": "20",
+        "min_delay_seconds": "3",
+        "max_bytes": "3000000",
+        "max_upload_mb": "8",
+    },
+    "agents": {
+        "enabled": "true",
+        "poll_seconds": "60",
+        "report_weekday": "saturday",
+        "report_time": "10:00",
     },
 }
 
@@ -178,6 +200,34 @@ class PathsCfg:
     products_xlsx: Path
     log_file: Path
     secret_key_file: Path
+    evidence_dir: Path
+
+
+@dataclass(frozen=True)
+class MarketCfg:
+    own_sellers: tuple
+    min_price_toman: int
+    max_price_toman: int
+    jump_quarantine: Decimal
+    stale_days: int
+    length_tolerance_mm: int
+
+
+@dataclass(frozen=True)
+class CollectorCfg:
+    user_agent: str
+    timeout_seconds: int
+    min_delay_seconds: int
+    max_bytes: int
+    max_upload_mb: int
+
+
+@dataclass(frozen=True)
+class AgentsCfg:
+    enabled: bool
+    poll_seconds: int
+    report_weekday: int
+    report_time: time
 
 
 @dataclass(frozen=True)
@@ -193,6 +243,9 @@ class Config:
     hours: HoursCfg
     web: WebCfg
     paths: PathsCfg
+    market: MarketCfg
+    collector: CollectorCfg
+    agents: AgentsCfg
 
 
 def _int(sec, key, raw, lo=None, hi=None) -> int:
@@ -374,7 +427,43 @@ def load_config(path: str | Path | None = None) -> Config:
         products_xlsx=_path(root, pa["products_xlsx"]),
         log_file=_path(root, pa["log_file"]),
         secret_key_file=_path(root, pa["secret_key_file"]),
+        evidence_dir=_path(root, pa["evidence_dir"]),
+    )
+
+    mk = cp["market"]
+    market = MarketCfg(
+        own_sellers=tuple(x.strip() for x in re.split(r"[,،\n]+", mk["own_sellers"]) if x.strip()),
+        min_price_toman=_int("market", "min_price_toman", mk["min_price_toman"], 1),
+        max_price_toman=_int("market", "max_price_toman", mk["max_price_toman"], 1),
+        jump_quarantine=_dec("market", "jump_quarantine", mk["jump_quarantine"], Decimal("0.05"), Decimal(10)),
+        stale_days=_int("market", "stale_days", mk["stale_days"], 1, 365),
+        length_tolerance_mm=_int("market", "length_tolerance_mm", mk["length_tolerance_mm"], 0, 500),
+    )
+    if market.min_price_toman >= market.max_price_toman:
+        raise ConfigError("[market] min_price_toman باید کمتر از max_price_toman باشد.")
+
+    co = cp["collector"]
+    ua = co["user_agent"].strip()
+    if not ua or any(ch in ua for ch in "\r\n"):
+        raise ConfigError("[collector] user_agent نباید خالی باشد.")
+    collector = CollectorCfg(
+        user_agent=ua,
+        timeout_seconds=_int("collector", "timeout_seconds", co["timeout_seconds"], 1, 120),
+        min_delay_seconds=_int("collector", "min_delay_seconds", co["min_delay_seconds"], 1, 600),
+        max_bytes=_int("collector", "max_bytes", co["max_bytes"], 10_000, 50_000_000),
+        max_upload_mb=_int("collector", "max_upload_mb", co["max_upload_mb"], 1, 9),
+    )
+
+    ag = cp["agents"]
+    wd = ag["report_weekday"].strip().lower()
+    if wd not in WEEKDAY_KEYS:
+        raise ConfigError(f"[agents] report_weekday باید نام انگلیسی یک روز هفته باشد (مثل saturday)، نه «{wd}».")
+    agents = AgentsCfg(
+        enabled=_bool("agents", "enabled", ag["enabled"]),
+        poll_seconds=_int("agents", "poll_seconds", ag["poll_seconds"], 5, 3600),
+        report_weekday=WEEKDAY_KEYS[wd],
+        report_time=_time("agents", "report_time", ag["report_time"]),
     )
     return Config(root=root, settings_path=settings_path, settings_exists=exists, source=source,
                   pricetoday=pricetoday, alanchand=alan, pricing=pricing, guards=guards, hours=hours, web=web,
-                  paths=paths)
+                  paths=paths, market=market, collector=collector, agents=agents)

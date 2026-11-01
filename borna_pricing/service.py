@@ -63,6 +63,18 @@ class Service:
             row = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='publications'").fetchone()
             return row is not None
 
+    def ensure_schema(self) -> list[int]:
+        with self._lock:
+            with self.db() as c:
+                if not db.pending_migrations(c):
+                    return []
+            self.backup(prefix=f"pre_v{db.SCHEMA_VERSION}", keep=0)
+            with self.db() as c:
+                done = db.migrate(c)
+                if done:
+                    db.audit(c, iso(now_utc()), "system", "schema_migrate", {"versions": done})
+                return done
+
     def init(self, user: str = "system") -> dict:
         out = {"imported": None, "base_publication": None}
         with self._lock, self.db() as c:
@@ -632,19 +644,19 @@ class Service:
             row = c.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
             return row["id"] if row else None
 
-    def backup(self, dest_dir: Path | None = None, keep: int = 30) -> Path:
+    def backup(self, dest_dir: Path | None = None, keep: int = 30, prefix: str = "borna_pricing") -> Path:
         import sqlite3
         dest_dir = Path(dest_dir or Path(self.cfg.paths.database).parent / "backups")
         dest_dir.mkdir(parents=True, exist_ok=True)
         stamp = now_utc().astimezone(TEHRAN)
-        target = dest_dir / f"borna_pricing_{stamp:%Y%m%d_%H%M%S}.sqlite3"
+        target = dest_dir / f"{prefix}_{stamp:%Y%m%d_%H%M%S}.sqlite3"
         with self.db() as c:
             dst = sqlite3.connect(str(target))
             try:
                 c.backup(dst)
             finally:
                 dst.close()
-        olds = sorted(dest_dir.glob("borna_pricing_*.sqlite3"))
+        olds = sorted(dest_dir.glob(f"{prefix}_*.sqlite3"))
         for old in olds[:-keep] if keep else []:
             try:
                 old.unlink()

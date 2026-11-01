@@ -216,6 +216,9 @@ def cmd_serve(args) -> int:
     if not svc.initialized():
         print("سامانه هنوز راه‌اندازی نشده؛ اول: python -m borna_pricing init")
         return 1
+    migrated = svc.ensure_schema()
+    if migrated:
+        print(f"پایگاه‌داده به نسخه {migrated[-1]} به‌روز شد (پشتیبان پیش از آن در data/backups ساخته شد).")
     from waitress import serve
 
     from .scheduler import Scheduler
